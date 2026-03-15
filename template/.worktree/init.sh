@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 
 # =============================================================================
@@ -77,7 +77,8 @@ EOF
 # All variables from init.sh are available for substitution.
 if [ -f ".worktree/.env.app.template" ]; then
   export WORKTREE_NAME BRANCH_NAME MAIN_REPO_NAME PROJECT_NAME NETWORK_NAME
-  envsubst < .worktree/.env.app.template > .worktree/.env.app
+  envsubst '${WORKTREE_NAME} ${BRANCH_NAME} ${MAIN_REPO_NAME} ${PROJECT_NAME} ${NETWORK_NAME}' \
+    < .worktree/.env.app.template > .worktree/.env.app
   echo "[container-wt] .worktree/.env.app generated from template."
 else
   # Create empty .env.app so docker-compose env_file doesn't fail.

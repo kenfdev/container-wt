@@ -48,7 +48,7 @@ Solo developer on macOS or Linux managing multiple feature branches simultaneous
   │    docker-compose.yml     (infra — shared)       │
   │    src/                                          │
   │                                                  │
-  │  myapp-feature-x/  (worktree)                    │
+  │  feature-x/  (worktree)                            │
   │    .git  (file → myapp/.git/worktrees/feature-x) │
   │    .worktree/  (tracked in git)              │
   │    src/                                          │
@@ -145,10 +145,8 @@ myapp/                                   # main worktree
   src/
   ...
 
-myapp-feature-x/                         # git worktree (sibling directory)
+feature-x/                               # git worktree (sibling directory)
   .git                                   # file → ../myapp/.git/worktrees/feature-x
-  .worktree/                         # same files (tracked in git)
-  .worktree/                             # same files (tracked in git)
   .worktree/                             # same files (tracked in git)
   src/
   ...
@@ -293,8 +291,8 @@ docker compose exec app zsh
 
 ```bash
 cd myapp
-git wt feature-x           # or: git worktree add ../myapp-feature-x -b feature-x
-cd ../myapp-feature-x
+git wt feature-x           # or: git worktree add ../feature-x -b feature-x
+cd ../feature-x
 docker compose up -d --build
 # Browser: http://feature-x.myapp.localhost
 ```
@@ -305,7 +303,7 @@ docker compose up -d --build
 cd myapp
 git fetch origin
 git wt feature-branch
-cd ../myapp-feature-branch
+cd ../feature-branch
 docker compose up -d --build
 # Browser: http://feature-branch.myapp.localhost
 
@@ -318,11 +316,11 @@ git wt -d feature-branch
 ### Cleanup
 
 ```bash
-cd ../myapp-feature-x
+cd ../feature-x
 docker compose down
 .worktree/hooks/on-delete.sh
 cd ../myapp
-git worktree remove ../myapp-feature-x
+git worktree remove ../feature-x
 ```
 
 ## Platform Considerations

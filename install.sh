@@ -203,6 +203,7 @@ info "For personal Dockerfile customization:"
 info "  1. Copy .worktree/personal/example/Dockerfile to .worktree/personal/<your-name>/Dockerfile"
 info "  2. Copy .worktree/docker-compose.local.example.yml to .worktree/docker-compose.local.yml"
 info "  3. Point it to your personal Dockerfile"
+info "  4. Add to .worktreeinclude.local: .worktree/personal/<your-name>/Dockerfile"
 echo
 info "If you are using git-wt, configure worktree hooks (recommended):"
 info "  git config wt.basedir .git/wt"
