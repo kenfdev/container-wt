@@ -4,11 +4,12 @@
 # CUSTOMIZE: Add project-specific dependencies here (language runtimes,
 # build tools, client libraries, etc.)
 #
-# The base image (devbase) is provided via additional_contexts in
-# .worktree/docker-compose.yml. Do not change the FROM line.
+# BASE_IMAGE is provided as a build arg by docker-compose.yml.
+# Do not change the ARG/FROM lines.
 # =============================================================================
 
-FROM devbase
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
 
 # Examples:
 #   RUN sudo apt-get update && sudo apt-get install -y postgresql-client && sudo rm -rf /var/lib/apt/lists/*

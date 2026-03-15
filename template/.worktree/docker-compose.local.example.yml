@@ -10,5 +10,3 @@
 #     build:
 #       context: ..
 #       dockerfile: .worktree/personal/<your-name>/Dockerfile
-#       additional_contexts:
-#         devbase: "service:base"

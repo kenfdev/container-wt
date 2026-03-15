@@ -32,7 +32,7 @@ myapp/                                    # <-- you are here (main worktree)
   .git/                                   # git database (directory)
   .worktree/                          # container-wt files
     Dockerfile.base                       # team-shared base image
-    Dockerfile.app                        # default app image (FROM devbase)
+    Dockerfile.app                        # default app image (FROM base)
     docker-compose.yml                    # per-worktree app service
     docker-compose.local.yml              # personal overrides (gitignored)
     docker-compose.local.example.yml      # template for personal overrides
@@ -129,13 +129,13 @@ Run infra commands from the **project root** and app commands from the **`.workt
 .worktree/personal/X/Dockerfile  Personal (neovim, claude, etc.)
 ```
 
-All Dockerfiles use `FROM devbase`. The `devbase` named context is provided by `additional_contexts: devbase: service:base` in the compose file, ensuring the base image is always built first.
+All Dockerfiles use `ARG BASE_IMAGE` / `FROM ${BASE_IMAGE}`. The base image name is passed as a build arg by the compose file, and `depends_on` ensures the base image is always built first.
 
 ### Personal Dockerfile Setup
 
 1. Copy `.worktree/personal/example/Dockerfile` to `.worktree/personal/<your-name>/Dockerfile`
 2. Copy `.worktree/docker-compose.local.example.yml` to `.worktree/docker-compose.local.yml`
-3. Update `docker-compose.local.yml` to point to your Dockerfile
+3. Update `docker-compose.local.yml` to point to your personal Dockerfile
 4. Add your Dockerfile to `.worktreeinclude.local` so it gets copied to new worktrees:
    ```
    .worktree/personal/<your-name>/Dockerfile

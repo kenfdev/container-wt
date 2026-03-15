@@ -6,11 +6,12 @@
 # 3. Create docker-compose.local.yml from docker-compose.local.example.yml
 #    and point it to your Dockerfile
 #
-# The base image (devbase) is provided via additional_contexts in
-# docker-compose.local.yml. Do not change the FROM line.
+# BASE_IMAGE is provided as a build arg by docker-compose.local.yml.
+# Do not change the ARG/FROM lines.
 # =============================================================================
 
-FROM devbase
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
 
 # Example: install neovim
 # RUN sudo apt-get update && sudo apt-get install -y neovim && sudo rm -rf /var/lib/apt/lists/*

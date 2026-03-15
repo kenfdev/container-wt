@@ -23,11 +23,13 @@ services:
       dockerfile: .worktree/Dockerfile.base
 
   app:
+    depends_on:
+      - base
     build:
       context: ..
       dockerfile: .worktree/Dockerfile.app
-      additional_contexts:
-        devbase: "service:base"
+      args:
+        BASE_IMAGE: "${PROJECT_NAME}-dev-base:local"
     tty: true
     stdin_open: true
     container_name: "app-${PROJECT_NAME}-${WORKTREE_NAME}"
