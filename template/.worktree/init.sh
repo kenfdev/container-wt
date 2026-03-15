@@ -4,7 +4,7 @@ set -euo pipefail
 # =============================================================================
 # container-wt init script
 # Runs on the HOST before starting containers. Detects worktree/project context
-# and generates .env and .worktree/.env.app files.
+# and generates .env (root, infra), .worktree/.env (app), and .worktree/.env.app files.
 #
 # Usage: .worktree/init.sh
 # =============================================================================
@@ -58,10 +58,17 @@ if [ ! -f ".worktree/docker-compose.local.yml" ]; then
   echo "[container-wt] Created empty .worktree/docker-compose.local.yml stub."
 fi
 
-# --- Write .env for docker-compose variable substitution ---
+# --- Write root .env for infra docker-compose variable substitution ---
 
 cat > .env <<EOF
-COMPOSE_FILE=.worktree/docker-compose.yml:.worktree/docker-compose.local.yml
+PROJECT_NAME=${PROJECT_NAME}
+NETWORK_NAME=${NETWORK_NAME}
+EOF
+
+# --- Write .worktree/.env for app docker-compose variable substitution ---
+
+cat > .worktree/.env <<EOF
+COMPOSE_FILE=docker-compose.yml:docker-compose.local.yml
 WORKTREE_NAME=${WORKTREE_NAME}
 BRANCH_NAME=${BRANCH_NAME}
 GIT_COMMON_DIR=${GIT_COMMON_DIR}

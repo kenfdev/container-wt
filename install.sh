@@ -145,6 +145,7 @@ chmod +x .worktree/hooks/on-delete.sh
 GITIGNORE_ENTRIES=(
   '# container-wt generated files'
   '.env'
+  '.worktree/.env'
   '.worktree/.env.app'
   '.worktree/docker-compose.local.yml'
   ''
@@ -193,11 +194,11 @@ info "  2. Edit .worktree/Dockerfile.app         -- add project-specific deps"
 info "  3. Edit docker-compose.yml                   -- add infra (Postgres, Redis, etc.)"
 info "  4. Edit .worktree/.env.app.template            -- add per-worktree env vars"
 info "  5. Start shared infrastructure:"
-info "       docker compose -f docker-compose.yml up -d"
+info "       docker compose up -d"
 info "  6. Start the app container:"
-info "       docker compose up -d --build"
+info "       cd .worktree && docker compose up -d --build"
 info "  7. Enter the container:"
-info "       docker compose exec app zsh"
+info "       cd .worktree && docker compose exec app zsh"
 echo
 info "For personal Dockerfile customization:"
 info "  1. Copy .worktree/personal/example/Dockerfile to .worktree/personal/<your-name>/Dockerfile"

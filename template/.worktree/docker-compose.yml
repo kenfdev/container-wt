@@ -1,8 +1,8 @@
 # =============================================================================
 # Per-worktree app service. One instance per worktree.
 #
-# Usage (from project root):
-#   docker compose up -d --build    (COMPOSE_FILE is set in .env by init.sh)
+# Usage (from .worktree/ directory):
+#   docker compose up -d --build
 #   docker compose exec app zsh
 #   docker compose down
 #
