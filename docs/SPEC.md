@@ -103,11 +103,11 @@ Solo developer on macOS or Linux managing multiple feature branches simultaneous
 | Container naming | Always `app-{project}-{worktree}` | Consistent pattern, no special-casing. |
 | Docker Compose UX | `COMPOSE_FILE` env var in `.env` | `init.sh` writes `COMPOSE_FILE=.worktree/docker-compose.yml:.worktree/docker-compose.local.yml` to `.env`. Users run `docker compose up` from project root without `-f` flags. |
 | Network isolation | Per-project Docker network (`devnet-{project}`) | Prevents container name collisions and unintended cross-project access. |
-| Compose project naming | Infra: `{PROJECT_NAME}-infra`, App: `{PROJECT_NAME}-{BRANCH_NAME}` | Prevents COMPOSE_PROJECT_NAME collision between infra and app compose files. |
+| Compose project naming | Infra: `{PROJECT_NAME}-infra`, App: `{PROJECT_NAME}-{BRANCH_NAME}` | Each compose file sets its own project name via the top-level `name:` attribute. `COMPOSE_PROJECT_NAME` is intentionally NOT set in `.env` to prevent it from leaking across compose files. |
 | Infra lifecycle | Standalone `docker-compose.yml` at project root | Infrastructure runs independently on the host via `docker compose -f docker-compose.yml up -d`. No devcontainer required. |
 | Per-worktree env vars | `.worktree/.env.app.template` expanded by `init.sh` | Tracked template with `${VARIABLE}` placeholders. `init.sh` renders it into `.worktree/.env.app` (gitignored) per worktree via `envsubst`. |
 | Personal Dockerfiles | `.worktree/personal/<name>/Dockerfile` with `docker-compose.local.yml` override | Each developer can customize their image without touching shared files. Base image inheritance guaranteed via `additional_contexts`. |
-| .env location | Project root | Docker Compose auto-reads `.env` from the directory where it's invoked. Contains `COMPOSE_FILE` and all template variables. |
+| .env location | Project root | Docker Compose auto-reads `.env` from the directory where it's invoked. Contains `COMPOSE_FILE` and all template variables. Does NOT contain `COMPOSE_PROJECT_NAME` (set via `name:` in each compose file instead). |
 | Worktree hooks | `.worktree/hooks/on-create.sh` and `on-delete.sh` | Prescribed hook scripts at a well-known location. Users wire them into their worktree tool of choice. `on-create.sh` also runs `init.sh` to generate .env files automatically. |
 | Worktreeinclude | `.worktreeinclude` + `.worktreeinclude.local` at repo root | Glob patterns for gitignored files to copy from main worktree to new worktrees. |
 | Local compose overrides | `.worktree/docker-compose.local.yml` (gitignored) | Personal Docker Compose overrides. Example template tracked as `.worktree/docker-compose.local.example.yml`. |
@@ -187,7 +187,7 @@ services:
 
 ### `.worktree/init.sh`
 
-Runs on the **host** (called by the installer on first setup, and by `on-create.sh` for new worktrees). Resolves git paths, detects project name, sanitizes worktree name, creates `.worktree/docker-compose.local.yml` stub if missing, expands the env var template, and writes `.env` (with `COMPOSE_FILE`) for Docker Compose substitution.
+Runs on the **host** (called by the installer on first setup, and by `on-create.sh` for new worktrees). Resolves git paths, detects project name, sanitizes worktree name, detects branch name (falls back to short SHA on detached HEAD), creates `.worktree/docker-compose.local.yml` stub if missing, expands the env var template, and writes `.env` (with `COMPOSE_FILE`) for Docker Compose substitution. `COMPOSE_PROJECT_NAME` is intentionally NOT written to `.env` — each compose file sets its own project name via the top-level `name:` attribute.
 
 ### `.worktree/.env.app.template`
 

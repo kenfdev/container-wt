@@ -13,6 +13,8 @@
 # CUSTOMIZE: Add shared build cache volumes (see commented examples at bottom).
 # =============================================================================
 
+name: ${PROJECT_NAME}-${BRANCH_NAME}
+
 services:
   base:
     image: "${PROJECT_NAME}-dev-base:local"

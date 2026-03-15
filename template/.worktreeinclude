@@ -6,6 +6,8 @@
 #
 # Lines starting with # are comments. Empty lines are ignored.
 # Patterns are expanded using bash globbing relative to the repo root.
+# Note: ** (recursive glob) requires bash 4.0+. macOS ships bash 3.2 by default;
+# install bash 5 via Homebrew if you need ** patterns.
 
 # Per-worktree local compose overrides (personal volume mounts, build overrides, etc.)
 .worktree/docker-compose.local.yml

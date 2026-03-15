@@ -186,7 +186,7 @@ TRAEFIK_PORT=8000 docker compose -f docker-compose.yml up -d
 |---|---|
 | **Docker Desktop** (macOS) or **Docker Engine** (Linux) | Must be running. |
 | **git** | Any recent version with worktree support. |
-| **envsubst** | Pre-installed on most Linux. On macOS: `brew install gettext`. |
+| **envsubst** | Pre-installed on most Linux. On macOS: `brew install gettext`. The installer checks for this. |
 
 ## How the Git Fix Works
 

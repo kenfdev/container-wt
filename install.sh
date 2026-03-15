@@ -45,9 +45,12 @@ ask() {
 
 # --- Prerequisites ---
 
-for cmd in curl git tar; do
+for cmd in curl git tar envsubst; do
   if ! command -v "$cmd" >/dev/null 2>&1; then
     error "${cmd} is required but not installed."
+    if [ "$cmd" = "envsubst" ]; then
+      error "On macOS: brew install gettext"
+    fi
     exit 1
   fi
 done
@@ -154,18 +157,20 @@ GITIGNORE_ENTRIES=(
 )
 
 if [ -f ".gitignore" ]; then
-  # Add entries that don't already exist
-  for entry in "${GITIGNORE_ENTRIES[@]}"; do
-    if [ -z "$entry" ]; then
-      continue
-    fi
-    if [[ "$entry" == \#* ]]; then
-      continue
-    fi
-    if ! grep -qF "$entry" .gitignore 2>/dev/null; then
-      echo "$entry" >> .gitignore
-    fi
-  done
+  # Check if container-wt section already exists
+  if ! grep -qF "# container-wt generated files" .gitignore 2>/dev/null; then
+    # Add a blank line separator, then all entries as a block
+    echo "" >> .gitignore
+    printf '%s\n' "${GITIGNORE_ENTRIES[@]}" >> .gitignore
+  else
+    # Section exists — add any missing non-comment, non-empty patterns
+    for entry in "${GITIGNORE_ENTRIES[@]}"; do
+      [[ -z "$entry" || "$entry" == \#* ]] && continue
+      if ! grep -qF "$entry" .gitignore 2>/dev/null; then
+        echo "$entry" >> .gitignore
+      fi
+    done
+  fi
 else
   printf '%s\n' "${GITIGNORE_ENTRIES[@]}" > .gitignore
 fi

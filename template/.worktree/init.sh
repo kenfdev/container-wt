@@ -19,7 +19,11 @@ WORKTREE_NAME=$(echo "$WORKTREE_DIR_NAME" | sed 's/[^a-zA-Z0-9-]/_/g' | tr '[:up
 
 # Detect the current branch name for use in subdomain routing.
 # Replace slashes with hyphens and sanitize for DNS-safe names.
+# Falls back to short SHA on detached HEAD (e.g., during PR review of a specific commit).
 BRANCH_NAME=$(git branch --show-current | sed 's|/|-|g; s/[^a-zA-Z0-9-]/_/g' | tr '[:upper:]' '[:lower:]')
+if [ -z "$BRANCH_NAME" ]; then
+  BRANCH_NAME=$(git rev-parse --short HEAD)
+fi
 
 # Detect project name: use PROJECT_NAME env var if set, otherwise derive from main repo directory.
 # The main repo directory is the parent of the git common dir.
@@ -33,7 +37,9 @@ MAIN_REPO_NAME=$(basename "$(dirname "$GIT_COMMON_DIR")")
 PROJECT_NAME="${PROJECT_NAME:-$MAIN_REPO_NAME}"
 
 NETWORK_NAME="${NETWORK_NAME:-devnet-${PROJECT_NAME}}"
-COMPOSE_PROJECT_NAME="${PROJECT_NAME}-${BRANCH_NAME}"
+# Note: COMPOSE_PROJECT_NAME is intentionally NOT set here or in .env.
+# It is set via the top-level `name:` attribute in each compose file to avoid
+# the app's project name leaking into the infra compose (and vice versa).
 LOCAL_WORKSPACE_FOLDER="$PWD"
 
 # --- Ensure Docker network exists ---
@@ -56,7 +62,6 @@ fi
 
 cat > .env <<EOF
 COMPOSE_FILE=.worktree/docker-compose.yml:.worktree/docker-compose.local.yml
-COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME}
 WORKTREE_NAME=${WORKTREE_NAME}
 BRANCH_NAME=${BRANCH_NAME}
 GIT_COMMON_DIR=${GIT_COMMON_DIR}
@@ -71,7 +76,7 @@ EOF
 # The .env.app.template uses ${VARIABLE} placeholders.
 # All variables from init.sh are available for substitution.
 if [ -f ".worktree/.env.app.template" ]; then
-  export WORKTREE_NAME BRANCH_NAME MAIN_REPO_NAME PROJECT_NAME NETWORK_NAME COMPOSE_PROJECT_NAME
+  export WORKTREE_NAME BRANCH_NAME MAIN_REPO_NAME PROJECT_NAME NETWORK_NAME
   envsubst < .worktree/.env.app.template > .worktree/.env.app
   echo "[container-wt] .worktree/.env.app generated from template."
 else
