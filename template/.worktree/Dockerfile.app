@@ -5,7 +5,7 @@
 # build tools, client libraries, etc.)
 #
 # The base image (devbase) is provided via additional_contexts in
-# docker-compose.app.yml. Do not change the FROM line.
+# .worktree/docker-compose.yml. Do not change the FROM line.
 # =============================================================================
 
 FROM devbase

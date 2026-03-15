@@ -1,7 +1,7 @@
 # =============================================================================
 # Shared infrastructure services — started independently on the host.
 #
-# Run: ./dev infra   (or: docker compose up -d)
+# Run: docker compose -f docker-compose.yml up -d
 # This is completely decoupled from app containers.
 #
 # CUSTOMIZE: Add your own infrastructure services (Postgres, Redis, etc.)

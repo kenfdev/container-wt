@@ -8,4 +8,4 @@
 # Patterns are expanded using bash globbing relative to the repo root.
 
 # Per-worktree local compose overrides (personal volume mounts, build overrides, etc.)
-docker-compose.local.yml
+.worktree/docker-compose.local.yml

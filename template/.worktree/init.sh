@@ -4,9 +4,9 @@ set -euo pipefail
 # =============================================================================
 # container-wt init script
 # Runs on the HOST before starting containers. Detects worktree/project context
-# and generates .env and .env.app files.
+# and generates .env and .worktree/.env.app files.
 #
-# Usage: ./init.sh
+# Usage: .worktree/init.sh
 # =============================================================================
 
 # --- Worktree and project detection ---
@@ -36,18 +36,26 @@ NETWORK_NAME="${NETWORK_NAME:-devnet-${PROJECT_NAME}}"
 COMPOSE_PROJECT_NAME="${PROJECT_NAME}-${BRANCH_NAME}"
 LOCAL_WORKSPACE_FOLDER="$PWD"
 
+# --- Ensure Docker network exists ---
+
+if ! docker network inspect "$NETWORK_NAME" > /dev/null 2>&1; then
+  docker network create "$NETWORK_NAME"
+  echo "[container-wt] Created Docker network: ${NETWORK_NAME}"
+fi
+
 # --- Local compose overrides ---
 
 # Create empty docker-compose.local.yml stub if missing (prevents Docker Compose errors).
-if [ ! -f "docker-compose.local.yml" ]; then
+if [ ! -f ".worktree/docker-compose.local.yml" ]; then
   echo "# Personal Docker Compose overrides (gitignored). See docker-compose.local.example.yml for examples." \
-    > docker-compose.local.yml
-  echo "[container-wt] Created empty docker-compose.local.yml stub."
+    > .worktree/docker-compose.local.yml
+  echo "[container-wt] Created empty .worktree/docker-compose.local.yml stub."
 fi
 
 # --- Write .env for docker-compose variable substitution ---
 
 cat > .env <<EOF
+COMPOSE_FILE=.worktree/docker-compose.yml:.worktree/docker-compose.local.yml
 COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME}
 WORKTREE_NAME=${WORKTREE_NAME}
 BRANCH_NAME=${BRANCH_NAME}
@@ -58,17 +66,17 @@ NETWORK_NAME=${NETWORK_NAME}
 LOCAL_WORKSPACE_FOLDER=${LOCAL_WORKSPACE_FOLDER}
 EOF
 
-# --- Expand .env.app.template → .env.app ---
+# --- Expand .worktree/.env.app.template → .worktree/.env.app ---
 
 # The .env.app.template uses ${VARIABLE} placeholders.
 # All variables from init.sh are available for substitution.
-if [ -f ".env.app.template" ]; then
+if [ -f ".worktree/.env.app.template" ]; then
   export WORKTREE_NAME BRANCH_NAME MAIN_REPO_NAME PROJECT_NAME NETWORK_NAME COMPOSE_PROJECT_NAME
-  envsubst < .env.app.template > .env.app
-  echo "[container-wt] .env.app generated from template."
+  envsubst < .worktree/.env.app.template > .worktree/.env.app
+  echo "[container-wt] .worktree/.env.app generated from template."
 else
   # Create empty .env.app so docker-compose env_file doesn't fail.
-  touch .env.app
+  touch .worktree/.env.app
 fi
 
 echo "[container-wt] init.sh complete for worktree '${WORKTREE_NAME}' branch '${BRANCH_NAME}' (project: ${PROJECT_NAME})"

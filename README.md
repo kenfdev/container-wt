@@ -7,9 +7,9 @@ Seamless Docker + git worktree workflows. Run multiple feature branches simultan
 - **Git works inside containers** -- worktree `.git` file resolution is fixed automatically via volume mount (no file mutation).
 - **No port conflicts** -- Traefik routes by subdomain, so every worktree container can listen on the same internal port.
 - **Per-worktree database** -- each worktree gets its own database, created automatically on startup.
-- **Per-worktree env vars** -- `.env.app.template` is expanded per worktree with `${WORKTREE_NAME}`, `${BRANCH_NAME}`, `${PROJECT_NAME}`, etc.
+- **Per-worktree env vars** -- `.worktree/.env.app.template` is expanded per worktree with `${WORKTREE_NAME}`, `${BRANCH_NAME}`, `${PROJECT_NAME}`, etc.
 - **Personal Dockerfiles** -- each developer can customize their container image without touching shared files.
-- **Simple `./dev` wrapper** -- `./dev up`, `./dev exec`, `./dev down` for everyday use.
+- **Clean project root** -- all container files live inside `.worktree/`, only infra compose and env template at root.
 
 ## Install
 
@@ -21,29 +21,31 @@ curl -fsSL https://raw.githubusercontent.com/kenfdev/container-wt/main/install.s
 
 The installer will:
 - Download the template files from GitHub
-- Set up Dockerfiles, compose files, init script, and `dev` wrapper
+- Set up `.worktree/` with Dockerfiles, compose files, and init script
+- Run `init.sh` to generate `.env` files
 - Prompt to backup if existing files are detected
 
 ## Directory Structure
 
 ```
-myapp/                              # <-- you are here (main worktree)
-  .git/                             # git database (directory)
-  docker-compose.yml                # shared infra (Traefik, Postgres, Redis)
-  docker-compose.app.yml            # per-worktree app service
-  docker-compose.local.yml          # personal overrides (gitignored)
-  Dockerfile.base                   # team-shared base image
-  Dockerfile.app                    # default app image (FROM devbase)
-  .docker/dev/example/Dockerfile    # example personal Dockerfile
-  init.sh                           # host-side: generates .env, .env.app
-  dev                               # wrapper script (./dev up, exec, down)
-  .env                              # generated (gitignored)
-  .env.app                          # generated (gitignored)
-  .env.app.template                 # per-worktree env var template (tracked)
-  .worktreeinclude                  # glob patterns for worktree file copy
+myapp/                                    # <-- you are here (main worktree)
+  .git/                                   # git database (directory)
+  .worktree/                          # container-wt files
+    Dockerfile.base                       # team-shared base image
+    Dockerfile.app                        # default app image (FROM devbase)
+    docker-compose.yml                    # per-worktree app service
+    docker-compose.local.yml              # personal overrides (gitignored)
+    docker-compose.local.example.yml      # template for personal overrides
+    init.sh                               # host-side: generates .env, .env.app
+    personal/example/Dockerfile           # example personal Dockerfile
+    .env.app                              # generated (gitignored)
+    .env.app.template                     # per-worktree env var template (tracked)
+  docker-compose.yml                      # shared infra (Traefik, Postgres, Redis)
+  .env                                    # generated (gitignored)
+  .worktreeinclude                        # glob patterns for worktree file copy
   .worktree/hooks/
-    on-create.sh                    # worktree creation hook
-    on-delete.sh                    # worktree deletion hook
+    on-create.sh                          # worktree creation hook
+    on-delete.sh                          # worktree deletion hook
 ```
 
 ## Quick Start
@@ -52,21 +54,21 @@ myapp/                              # <-- you are here (main worktree)
 
 ```bash
 cd myapp
-./dev infra
+docker compose -f docker-compose.yml up -d
 # Traefik dashboard: http://traefik.myapp.localhost
 ```
 
 ### 2. Start the App Container
 
 ```bash
-./dev up
+docker compose up -d --build
 # App: http://main.myapp.localhost
 ```
 
 ### 3. Enter the Container
 
 ```bash
-./dev exec
+docker compose exec app zsh
 ```
 
 ### 4. Create a Feature Worktree
@@ -76,17 +78,17 @@ From the host terminal:
 ```bash
 git worktree add ../myapp-feature-x -b feature-x
 cd ../myapp-feature-x
-.worktree/hooks/on-create.sh   # copies gitignored files
-./dev up
+.worktree/hooks/on-create.sh   # copies gitignored files + runs init.sh
+docker compose up -d --build
 # App: http://feature-x.myapp.localhost
 ```
 
-With [git-wt](https://github.com/k1LoW/git-wt):
+With [git-wt](https://github.com/k1LoW/git-wt) (hooks run automatically):
 
 ```bash
 git wt feature-x
 cd ../myapp-feature-x
-./dev up
+docker compose up -d --build
 ```
 
 ## URL Pattern
@@ -101,33 +103,35 @@ http://{BRANCH_NAME}.{PROJECT_NAME}.localhost
 | Feature worktree (`feature-x`) | `http://feature-x.myapp.localhost` |
 | Traefik dashboard | `http://traefik.myapp.localhost` |
 
-## `./dev` Commands
+## Docker Compose Commands
+
+Since `COMPOSE_FILE` is set in `.env` by `init.sh`, you can run `docker compose` directly from the project root without `-f` flags:
 
 | Command | What It Does |
 |---|---|
-| `./dev up` | Run `init.sh`, create Docker network, start app container |
-| `./dev down` | Stop the app container |
-| `./dev exec` | Open a shell in the running app container |
-| `./dev build` | Rebuild the app image |
-| `./dev infra` | Start shared infrastructure (Traefik, DB, etc.) |
-| `./dev logs` | Tail app container logs |
+| `docker compose up -d --build` | Start app container |
+| `docker compose down` | Stop the app container |
+| `docker compose exec app zsh` | Open a shell in the running app container |
+| `docker compose build` | Rebuild the app image |
+| `docker compose logs -f app` | Tail app container logs |
+| `docker compose -f docker-compose.yml up -d` | Start shared infrastructure (uses infra compose explicitly) |
 
 ## Dockerfile Layering
 
 ```
-Dockerfile.base          Team-shared base (ubuntu + git, curl, zsh)
+.worktree/Dockerfile.base     Team-shared base (ubuntu + git, curl, zsh)
       |
-Dockerfile.app           Default app (project-specific deps)
+.worktree/Dockerfile.app      Default app (project-specific deps)
       |
-.docker/dev/X/Dockerfile Personal (neovim, claude, etc.)
+.worktree/personal/X/Dockerfile  Personal (neovim, claude, etc.)
 ```
 
 All Dockerfiles use `FROM devbase`. The `devbase` named context is provided by `additional_contexts: devbase: service:base` in the compose file, ensuring the base image is always built first.
 
 ### Personal Dockerfile Setup
 
-1. Copy `.docker/dev/example/Dockerfile` to `.docker/dev/<your-name>/Dockerfile`
-2. Copy `docker-compose.local.example.yml` to `docker-compose.local.yml`
+1. Copy `.worktree/personal/example/Dockerfile` to `.worktree/personal/<your-name>/Dockerfile`
+2. Copy `.worktree/docker-compose.local.example.yml` to `.worktree/docker-compose.local.yml`
 3. Update `docker-compose.local.yml` to point to your Dockerfile
 
 ## Customization
@@ -154,7 +158,7 @@ Edit `docker-compose.yml` to add services (Postgres, Redis, etc.):
 
 ### Add Environment Variables
 
-Edit `.env.app.template` (tracked in git):
+Edit `.worktree/.env.app.template` (tracked in git):
 
 ```bash
 DATABASE_URL=postgres://dev:dev@postgres-${PROJECT_NAME}:5432/${PROJECT_NAME}_${WORKTREE_NAME}
@@ -164,7 +168,7 @@ APP_NAME=${PROJECT_NAME}-${WORKTREE_NAME}
 
 ### Change the App Port
 
-Update the Traefik label in `docker-compose.app.yml`:
+Update the Traefik label in `.worktree/docker-compose.yml`:
 
 ```yaml
 - "traefik.http.services.${PROJECT_NAME}-${WORKTREE_NAME}.loadbalancer.server.port=4000"
@@ -173,8 +177,7 @@ Update the Traefik label in `docker-compose.app.yml`:
 ### Change the Traefik Port
 
 ```bash
-export TRAEFIK_PORT=8000
-./dev infra
+TRAEFIK_PORT=8000 docker compose -f docker-compose.yml up -d
 ```
 
 ## Prerequisites

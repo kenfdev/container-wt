@@ -65,7 +65,7 @@ echo
 # --- Handle existing files ---
 
 EXISTING_FILES=()
-for f in docker-compose.app.yml Dockerfile.base Dockerfile.app init.sh dev; do
+for f in .worktree/docker-compose.yml .worktree/Dockerfile.base .worktree/Dockerfile.app .worktree/init.sh; do
   [ -f "$f" ] && EXISTING_FILES+=("$f")
 done
 
@@ -80,7 +80,8 @@ if [ ${#EXISTING_FILES[@]} -gt 0 ]; then
       backup_dir=".container-wt-backup.$(date +%Y%m%d%H%M%S)"
       mkdir -p "$backup_dir"
       for f in "${EXISTING_FILES[@]}"; do
-        cp "$f" "$backup_dir/"
+        mkdir -p "$backup_dir/$(dirname "$f")"
+        cp "$f" "$backup_dir/$f"
       done
       success "Backup created: ${backup_dir}/"
       ;;
@@ -105,32 +106,28 @@ if [ ! -d "$TEMPLATE_DIR" ]; then
   exit 1
 fi
 
-# --- Install core files ---
+# --- Install .worktree files ---
 
-info "Installing Dockerfiles..."
-cp "$TEMPLATE_DIR/Dockerfile.base" .
-cp "$TEMPLATE_DIR/Dockerfile.app" .
-
-info "Installing docker-compose files..."
-cp "$TEMPLATE_DIR/docker-compose.yml" .
-cp "$TEMPLATE_DIR/docker-compose.app.yml" .
-cp "$TEMPLATE_DIR/docker-compose.local.example.yml" .
-
-info "Installing init.sh and dev wrapper..."
-cp "$TEMPLATE_DIR/init.sh" .
-cp "$TEMPLATE_DIR/dev" .
-chmod +x init.sh dev
+info "Installing .worktree/..."
+mkdir -p .worktree/personal/example
+cp "$TEMPLATE_DIR/.worktree/Dockerfile.base" .worktree/
+cp "$TEMPLATE_DIR/.worktree/Dockerfile.app" .worktree/
+cp "$TEMPLATE_DIR/.worktree/docker-compose.yml" .worktree/
+cp "$TEMPLATE_DIR/.worktree/docker-compose.local.example.yml" .worktree/
+cp "$TEMPLATE_DIR/.worktree/init.sh" .worktree/
+chmod +x .worktree/init.sh
+cp "$TEMPLATE_DIR/.worktree/personal/example/Dockerfile" .worktree/personal/example/
 
 info "Installing .env.app.template..."
-cp "$TEMPLATE_DIR/.env.app.template" .
+cp "$TEMPLATE_DIR/.worktree/.env.app.template" .worktree/
+
+# --- Install root-level files ---
+
+info "Installing docker-compose.yml (infra)..."
+cp "$TEMPLATE_DIR/docker-compose.yml" .
 
 info "Installing .worktreeinclude..."
 cp "$TEMPLATE_DIR/.worktreeinclude" .
-
-# Install example personal Dockerfile
-info "Installing .docker/dev/example/..."
-mkdir -p .docker/dev/example
-cp "$TEMPLATE_DIR/.docker/dev/example/Dockerfile" .docker/dev/example/
 
 # Install worktree hooks
 info "Installing .worktree/hooks/..."
@@ -145,12 +142,12 @@ chmod +x .worktree/hooks/on-delete.sh
 GITIGNORE_ENTRIES=(
   '# container-wt generated files'
   '.env'
-  '.env.app'
-  'docker-compose.local.yml'
+  '.worktree/.env.app'
+  '.worktree/docker-compose.local.yml'
   ''
   '# Personal Dockerfiles (gitignored except example)'
-  '.docker/dev/*/Dockerfile'
-  '!.docker/dev/example/Dockerfile'
+  '.worktree/personal/*/Dockerfile'
+  '!.worktree/personal/example/Dockerfile'
   ''
   '# Personal worktreeinclude (not tracked)'
   '.worktreeinclude.local'
@@ -173,7 +170,12 @@ else
   printf '%s\n' "${GITIGNORE_ENTRIES[@]}" > .gitignore
 fi
 
-success "Core template files installed."
+success "Template files installed."
+
+# --- Run init.sh to generate .env files ---
+
+info "Running init.sh to generate .env files..."
+.worktree/init.sh
 
 # --- Done ---
 
@@ -181,17 +183,20 @@ echo
 success "container-wt installed successfully!"
 echo
 info "${BOLD}Next steps:${NC}"
-info "  1. Edit Dockerfile.base                  -- add team-wide system deps"
-info "  2. Edit Dockerfile.app                   -- add project-specific deps"
-info "  3. Edit docker-compose.yml               -- add infra (Postgres, Redis, etc.)"
-info "  4. Edit .env.app.template                -- add per-worktree env vars"
-info "  5. ./dev infra                           -- start shared infrastructure"
-info "  6. ./dev up                              -- start the app container"
-info "  7. ./dev exec                            -- open a shell in the container"
+info "  1. Edit .worktree/Dockerfile.base       -- add team-wide system deps"
+info "  2. Edit .worktree/Dockerfile.app         -- add project-specific deps"
+info "  3. Edit docker-compose.yml                   -- add infra (Postgres, Redis, etc.)"
+info "  4. Edit .worktree/.env.app.template            -- add per-worktree env vars"
+info "  5. Start shared infrastructure:"
+info "       docker compose -f docker-compose.yml up -d"
+info "  6. Start the app container:"
+info "       docker compose up -d --build"
+info "  7. Enter the container:"
+info "       docker compose exec app zsh"
 echo
 info "For personal Dockerfile customization:"
-info "  1. Copy .docker/dev/example/Dockerfile to .docker/dev/<your-name>/Dockerfile"
-info "  2. Copy docker-compose.local.example.yml to docker-compose.local.yml"
+info "  1. Copy .worktree/personal/example/Dockerfile to .worktree/personal/<your-name>/Dockerfile"
+info "  2. Copy .worktree/docker-compose.local.example.yml to .worktree/docker-compose.local.yml"
 info "  3. Point it to your personal Dockerfile"
 echo
 info "If you are using git-wt, configure worktree hooks (recommended):"

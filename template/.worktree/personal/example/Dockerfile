@@ -1,7 +1,7 @@
 # =============================================================================
 # Example personal Dockerfile — copy and customize for your own setup.
 #
-# 1. Create your own directory: .docker/dev/<your-name>/Dockerfile
+# 1. Create your own directory: .worktree/personal/<your-name>/Dockerfile
 # 2. Add your personal tools (editors, CLIs, etc.)
 # 3. Create docker-compose.local.yml from docker-compose.local.example.yml
 #    and point it to your Dockerfile

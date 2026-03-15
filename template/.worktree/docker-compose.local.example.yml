@@ -3,12 +3,12 @@
 # This file is gitignored — your overrides stay local.
 #
 # Use this to override the app service's build to use your personal Dockerfile.
-# See .docker/dev/example/Dockerfile for a starting point.
+# See .worktree/personal/example/Dockerfile for a starting point.
 
 # services:
 #   app:
 #     build:
-#       context: .
-#       dockerfile: .docker/dev/<your-name>/Dockerfile
+#       context: ..
+#       dockerfile: .worktree/personal/<your-name>/Dockerfile
 #       additional_contexts:
 #         devbase: "service:base"
