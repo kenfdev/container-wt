@@ -1,0 +1,111 @@
+#!/bin/bash
+set -euo pipefail
+
+# =============================================================================
+# container-wt dev wrapper
+#
+# Thin wrapper around docker compose for common development tasks.
+# Always runs init.sh first to ensure .env files are up to date.
+#
+# Usage:
+#   ./dev up      — start the app container (runs init.sh first)
+#   ./dev down    — stop the app container
+#   ./dev exec    — open a shell in the app container
+#   ./dev build   — rebuild the app image
+#   ./dev infra   — start shared infrastructure (Traefik, DB, etc.)
+#   ./dev logs    — tail app container logs
+# =============================================================================
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR"
+
+# Compose files for app services
+APP_FILES=(-f docker-compose.app.yml)
+if [ -f docker-compose.local.yml ]; then
+  APP_FILES+=(-f docker-compose.local.yml)
+fi
+
+usage() {
+  echo "Usage: ./dev <command>"
+  echo ""
+  echo "Commands:"
+  echo "  up      Start the app container (runs init.sh first)"
+  echo "  down    Stop the app container"
+  echo "  exec    Open a shell in the app container"
+  echo "  build   Rebuild the app image"
+  echo "  infra   Start shared infrastructure (Traefik, DB, etc.)"
+  echo "  logs    Tail app container logs"
+  echo ""
+}
+
+ensure_init() {
+  ./init.sh
+}
+
+ensure_network() {
+  local network_name
+  network_name=$(grep '^NETWORK_NAME=' .env 2>/dev/null | cut -d= -f2-)
+  if [ -n "$network_name" ]; then
+    docker network inspect "$network_name" > /dev/null 2>&1 || \
+      docker network create "$network_name"
+  fi
+}
+
+cmd="${1:-}"
+
+case "$cmd" in
+  up)
+    ensure_init
+    ensure_network
+    docker compose "${APP_FILES[@]}" up -d --build
+    echo "[dev] App container started."
+    ;;
+  down)
+    if [ -f .env ]; then
+      docker compose "${APP_FILES[@]}" down
+    else
+      echo "[dev] No .env found. Run './dev up' first."
+      exit 1
+    fi
+    ;;
+  exec)
+    if [ -f .env ]; then
+      WORKTREE_NAME=$(grep '^WORKTREE_NAME=' .env | cut -d= -f2-)
+      docker compose "${APP_FILES[@]}" exec app zsh -l -c "cd /workspaces/${WORKTREE_NAME} && exec zsh -l" 2>/dev/null \
+        || docker compose "${APP_FILES[@]}" exec app bash -l -c "cd /workspaces/${WORKTREE_NAME} && exec bash -l"
+    else
+      echo "[dev] No .env found. Run './dev up' first."
+      exit 1
+    fi
+    ;;
+  build)
+    ensure_init
+    docker compose "${APP_FILES[@]}" build
+    echo "[dev] App image rebuilt."
+    ;;
+  infra)
+    docker compose -f docker-compose.yml up -d
+    echo "[dev] Infrastructure started."
+    ;;
+  logs)
+    if [ -f .env ]; then
+      docker compose "${APP_FILES[@]}" logs -f app
+    else
+      echo "[dev] No .env found. Run './dev up' first."
+      exit 1
+    fi
+    ;;
+  -h|--help|help)
+    usage
+    ;;
+  "")
+    usage
+    exit 1
+    ;;
+  *)
+    echo "Unknown command: $cmd"
+    echo ""
+    usage
+    exit 1
+    ;;
+esac
