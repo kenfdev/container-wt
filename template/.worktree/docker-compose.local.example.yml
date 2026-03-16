@@ -3,10 +3,10 @@
 # This file is gitignored — your overrides stay local.
 #
 # Use this to override the app service's build to use your personal Dockerfile.
-# See .worktree/personal/example/Dockerfile for a starting point.
+# See .worktree/Dockerfile.local.example for a starting point.
 
 # services:
 #   app:
 #     build:
 #       context: ..
-#       dockerfile: .worktree/personal/<your-name>/Dockerfile
+#       dockerfile: .worktree/Dockerfile.local

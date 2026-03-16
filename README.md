@@ -8,7 +8,7 @@ Seamless Docker + git worktree workflows. Run multiple feature branches simultan
 - **No port conflicts** -- Traefik routes by subdomain, so every worktree container can listen on the same internal port.
 - **Per-worktree database** -- each worktree gets its own database, created automatically on startup.
 - **Per-worktree env vars** -- `.worktree/.env.app.template` is expanded per worktree with `${WORKTREE_NAME}`, `${BRANCH_NAME}`, `${PROJECT_NAME}`, etc.
-- **Personal Dockerfiles** -- each developer can customize their container image without touching shared files.
+- **Personal Dockerfile** -- each developer can customize their container image without touching shared files.
 - **Clean project root** -- all container files live inside `.worktree/`, only infra compose and env template at root.
 
 ## Install
@@ -37,7 +37,7 @@ myapp/                                    # <-- you are here (main worktree)
     docker-compose.local.yml              # personal overrides (gitignored)
     docker-compose.local.example.yml      # template for personal overrides
     init.sh                               # host-side: generates .env, .env.app
-    personal/example/Dockerfile           # example personal Dockerfile
+    Dockerfile.local.example              # example personal Dockerfile
     .env                                  # generated, compose vars (gitignored)
     .env.app                              # generated, container env (gitignored)
     .env.app.template                     # per-worktree env var template (tracked)
@@ -126,19 +126,19 @@ Run infra commands from the **project root** and app commands from the **`.workt
       |
 .worktree/Dockerfile.app      Default app (project-specific deps)
       |
-.worktree/personal/X/Dockerfile  Personal (neovim, claude, etc.)
+.worktree/Dockerfile.local       Personal (neovim, claude, etc.)
 ```
 
 All Dockerfiles use `ARG BASE_IMAGE` / `FROM ${BASE_IMAGE}`. The base image name is passed as a build arg by the compose file, and `depends_on` ensures the base image is always built first.
 
 ### Personal Dockerfile Setup
 
-1. Copy `.worktree/personal/example/Dockerfile` to `.worktree/personal/<your-name>/Dockerfile`
+1. Copy `.worktree/Dockerfile.local.example` to `.worktree/Dockerfile.local`
 2. Copy `.worktree/docker-compose.local.example.yml` to `.worktree/docker-compose.local.yml`
-3. Update `docker-compose.local.yml` to point to your personal Dockerfile
+3. Uncomment the build override in `docker-compose.local.yml`
 4. Add your Dockerfile to `.worktreeinclude.local` so it gets copied to new worktrees:
    ```
-   .worktree/personal/<your-name>/Dockerfile
+   .worktree/Dockerfile.local
    ```
 
 ## Customization

@@ -112,14 +112,14 @@ fi
 # --- Install .worktree files ---
 
 info "Installing .worktree/..."
-mkdir -p .worktree/personal/example
+mkdir -p .worktree
 cp "$TEMPLATE_DIR/.worktree/Dockerfile.base" .worktree/
 cp "$TEMPLATE_DIR/.worktree/Dockerfile.app" .worktree/
+cp "$TEMPLATE_DIR/.worktree/Dockerfile.local.example" .worktree/
 cp "$TEMPLATE_DIR/.worktree/docker-compose.yml" .worktree/
 cp "$TEMPLATE_DIR/.worktree/docker-compose.local.example.yml" .worktree/
 cp "$TEMPLATE_DIR/.worktree/init.sh" .worktree/
 chmod +x .worktree/init.sh
-cp "$TEMPLATE_DIR/.worktree/personal/example/Dockerfile" .worktree/personal/example/
 
 info "Installing .env.app.template..."
 cp "$TEMPLATE_DIR/.worktree/.env.app.template" .worktree/
@@ -149,9 +149,8 @@ GITIGNORE_ENTRIES=(
   '.worktree/.env.app'
   '.worktree/docker-compose.local.yml'
   ''
-  '# Personal Dockerfiles (gitignored except example)'
-  '.worktree/personal/*/Dockerfile'
-  '!.worktree/personal/example/Dockerfile'
+  '# Personal Dockerfile (gitignored)'
+  '.worktree/Dockerfile.local'
   ''
   '# Personal worktreeinclude (not tracked)'
   '.worktreeinclude.local'
@@ -201,10 +200,10 @@ info "  7. Enter the container:"
 info "       cd .worktree && docker compose exec app zsh"
 echo
 info "For personal Dockerfile customization:"
-info "  1. Copy .worktree/personal/example/Dockerfile to .worktree/personal/<your-name>/Dockerfile"
+info "  1. Copy .worktree/Dockerfile.local.example to .worktree/Dockerfile.local"
 info "  2. Copy .worktree/docker-compose.local.example.yml to .worktree/docker-compose.local.yml"
-info "  3. Point it to your personal Dockerfile"
-info "  4. Add to .worktreeinclude.local: .worktree/personal/<your-name>/Dockerfile"
+info "  3. Uncomment the build override in docker-compose.local.yml"
+info "  4. Add to .worktreeinclude.local: .worktree/Dockerfile.local"
 echo
 info "If you are using git-wt, configure worktree hooks (recommended):"
 info "  git config wt.basedir .git/wt"

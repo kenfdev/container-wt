@@ -23,7 +23,7 @@ Working with containers and git worktrees simultaneously is painful:
 - **Shared infrastructure:** Infrastructure services (database, cache, proxy) run from a standalone `docker-compose.yml` at the project root — started with `docker compose up -d` on the host. Per-worktree app containers join a shared Docker network.
 - **Gitignored file propagation:** `.worktreeinclude` + `.worktreeinclude.local` define glob patterns for files to copy to new worktrees. Copying is handled by worktree tool hooks (e.g., `git-wt`'s `wt.hook`).
 - **Per-worktree env vars:** A `.worktree/.env.app.template` (tracked in git) with `${VARIABLE}` placeholders is expanded by `init.sh` into `.worktree/.env.app` (gitignored) per worktree.
-- **Dockerfile layering:** `Dockerfile.base` (team-shared) + `Dockerfile.app` (project-specific) + personal `.worktree/personal/<name>/Dockerfile` for individual customization. All use `ARG BASE_IMAGE` / `FROM ${BASE_IMAGE}` with `depends_on` ensuring the base is always built first.
+- **Dockerfile layering:** `Dockerfile.base` (team-shared) + `Dockerfile.app` (project-specific) + personal `.worktree/Dockerfile.local` for individual customization. All use `ARG BASE_IMAGE` / `FROM ${BASE_IMAGE}` with `depends_on` ensuring the base is always built first.
 - **Lifecycle hooks:** `.worktree/hooks/on-create.sh` and `.worktree/hooks/on-delete.sh` provide extension points for worktree tool hooks (file copying, container cleanup, DB teardown).
 
 ## Target User
@@ -95,7 +95,7 @@ Solo developer on macOS or Linux managing multiple feature branches simultaneous
 | Git fix | Same-path volume mount (no file mutation) | Mounts the git common directory at the same absolute host path inside the container. The `.git` file's host path references resolve directly. No symlink or post-start script needed. |
 | Directory layout | Sibling directories | Most common git worktree pattern. Main worktree is a natural home for shared infra. |
 | Container runtime | Plain Docker Compose + Dockerfile | No devcontainer CLI, VS Code, or features required. Works from any terminal. |
-| File organization | `.worktree/` directory | All container-wt files (Dockerfiles, app compose, init.sh, personal Dockerfiles, env template, app `.env`) live inside `.worktree/` to avoid polluting the project root. Only `docker-compose.yml` (infra), a minimal `.env`, and `.worktreeinclude` remain at root. |
+| File organization | `.worktree/` directory | All container-wt files (Dockerfiles, app compose, init.sh, personal Dockerfile, env template, app `.env`) live inside `.worktree/` to avoid polluting the project root. Only `docker-compose.yml` (infra), a minimal `.env`, and `.worktreeinclude` remain at root. |
 | Dockerfile layering | `Dockerfile.base` + `Dockerfile.app` + personal | Team-shared base, project-specific app, personal customization. All use `ARG BASE_IMAGE` / `FROM ${BASE_IMAGE}` with `depends_on` for build ordering. |
 | Worktree management | External tools (git-wt, wtp, raw git worktree) | Template does NOT wrap `git worktree`. Users choose their preferred tool. Template provides hook scripts that any tool can call. |
 | Port conflict solution | Traefik with subdomain routing | Single entry point, configurable port (default 80). Auto-discovers containers via Docker labels. Zero-config per worktree. |
@@ -106,7 +106,7 @@ Solo developer on macOS or Linux managing multiple feature branches simultaneous
 | Compose project naming | Infra: `{PROJECT_NAME}-infra`, App: `{PROJECT_NAME}-{BRANCH_NAME}` | Each compose file sets its own project name via the top-level `name:` attribute. `COMPOSE_PROJECT_NAME` is intentionally NOT set in `.env` to prevent it from leaking across compose files. |
 | Infra lifecycle | Standalone `docker-compose.yml` at project root | Infrastructure runs independently on the host via `docker compose up -d` from project root. No devcontainer required. |
 | Per-worktree env vars | `.worktree/.env.app.template` expanded by `init.sh` | Tracked template with `${VARIABLE}` placeholders. `init.sh` renders it into `.worktree/.env.app` (gitignored) per worktree via `envsubst`. |
-| Personal Dockerfiles | `.worktree/personal/<name>/Dockerfile` with `docker-compose.local.yml` override | Each developer can customize their image without touching shared files. Base image inheritance guaranteed via `depends_on` and `BASE_IMAGE` build arg. |
+| Personal Dockerfile | `.worktree/Dockerfile.local` with `docker-compose.local.yml` override | Each developer can customize their image without touching shared files. Base image inheritance guaranteed via `depends_on` and `BASE_IMAGE` build arg. |
 | .env location | Split: root + `.worktree/` | Root `.env` has minimal infra vars (`PROJECT_NAME`, `NETWORK_NAME`). `.worktree/.env` has app vars (`WORKTREE_NAME`, `BRANCH_NAME`, `LOCAL_WORKSPACE_FOLDER`, etc.) plus `COMPOSE_FILE` for local overrides. Each is auto-loaded by Docker Compose from its respective directory. |
 | Worktree hooks | `.worktree/hooks/on-create.sh` and `on-delete.sh` | Prescribed hook scripts at a well-known location. Users wire them into their worktree tool of choice. `on-create.sh` also runs `init.sh` to generate .env files automatically. |
 | Worktreeinclude | `.worktreeinclude` + `.worktreeinclude.local` at repo root | Glob patterns for gitignored files to copy from main worktree to new worktrees. |
@@ -132,7 +132,7 @@ myapp/                                   # main worktree
     docker-compose.local.example.yml     # template for personal overrides (tracked)
     init.sh                              # host-side: resolves paths → .env, expands .env.app.template
     .env.app.template                    # per-worktree env var template (tracked in git)
-    personal/example/Dockerfile          # example personal Dockerfile
+    Dockerfile.local.example             # example personal Dockerfile
     .env                                 # generated by init.sh, compose vars (gitignored)
     .env.app                             # generated by init.sh from template (gitignored)
   docker-compose.yml                     # shared infrastructure (Traefik, DB, cache)
@@ -168,7 +168,7 @@ Per-worktree app services with two-stage build:
 - **`base` service:** Builds `Dockerfile.base`, tags as `${PROJECT_NAME}-dev-base:local`
 - **`app` service:** Builds `Dockerfile.app` with `depends_on: base` and `args: BASE_IMAGE`
 
-`depends_on` ensures the base image is always built before the app image. Personal Dockerfiles also use `ARG BASE_IMAGE` / `FROM ${BASE_IMAGE}` — the image name is passed as a build arg by the compose file.
+`depends_on` ensures the base image is always built before the app image. Personal Dockerfile also use `ARG BASE_IMAGE` / `FROM ${BASE_IMAGE}` — the image name is passed as a build arg by the compose file.
 
 ### `.worktree/docker-compose.local.yml` and `.worktree/docker-compose.local.example.yml`
 
@@ -179,7 +179,7 @@ services:
   app:
     build:
       context: ..
-      dockerfile: .worktree/personal/ken/Dockerfile
+      dockerfile: .worktree/Dockerfile.local
 ```
 
 ### `.worktree/init.sh`
@@ -201,7 +201,7 @@ Glob patterns (one per line) for gitignored files that should be copied from the
       ↓ (FROM base via BASE_IMAGE arg)
 .worktree/Dockerfile.app      — Project-specific: language runtimes, build tools, client libs
       ↓ (FROM base via BASE_IMAGE arg)
-.worktree/personal/X/Dockerfile — Personal: editors, AI CLIs, shell configs
+.worktree/Dockerfile.local        — Personal: editors, AI CLIs, shell configs
 ```
 
 All Dockerfiles use `ARG BASE_IMAGE` / `FROM ${BASE_IMAGE}`. The base image name is passed as a build arg by the compose file.

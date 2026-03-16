@@ -13,4 +13,4 @@
 .worktree/docker-compose.local.yml
 
 # If you use a personal Dockerfile, uncomment the next line or add it to .worktreeinclude.local:
-# .worktree/personal/*/Dockerfile
+# .worktree/Dockerfile.local
