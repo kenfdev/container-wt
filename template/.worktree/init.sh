@@ -42,11 +42,13 @@ NETWORK_NAME="${NETWORK_NAME:-devnet-${PROJECT_NAME}}"
 # the app's project name leaking into the infra compose (and vice versa).
 LOCAL_WORKSPACE_FOLDER="$PWD"
 
-# --- Ensure Docker network exists ---
+# --- Ensure Docker network exists (full mode only) ---
 
-if ! docker network inspect "$NETWORK_NAME" > /dev/null 2>&1; then
-  docker network create "$NETWORK_NAME"
-  echo "[container-wt] Created Docker network: ${NETWORK_NAME}"
+if [ -f "docker-compose.yml" ]; then
+  if ! docker network inspect "$NETWORK_NAME" > /dev/null 2>&1; then
+    docker network create "$NETWORK_NAME"
+    echo "[container-wt] Created Docker network: ${NETWORK_NAME}"
+  fi
 fi
 
 # --- Local compose overrides ---
@@ -58,12 +60,14 @@ if [ ! -f ".worktree/docker-compose.local.yml" ]; then
   echo "[container-wt] Created empty .worktree/docker-compose.local.yml stub."
 fi
 
-# --- Write root .env for infra docker-compose variable substitution ---
+# --- Write root .env for infra docker-compose variable substitution (full mode only) ---
 
-cat > .env <<EOF
+if [ -f "docker-compose.yml" ]; then
+  cat > .env <<EOF
 PROJECT_NAME=${PROJECT_NAME}
 NETWORK_NAME=${NETWORK_NAME}
 EOF
+fi
 
 # --- Write .worktree/.env for app docker-compose variable substitution ---
 
