@@ -9,15 +9,29 @@ set -euo pipefail
 #
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/kenfdev/container-wt/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/kenfdev/container-wt/main/install.sh | bash -s -- --slim
 #
 # Or download and run:
 #   curl -fsSL -o install.sh https://raw.githubusercontent.com/kenfdev/container-wt/main/install.sh
 #   chmod +x install.sh
-#   ./install.sh
+#   ./install.sh [--slim]
+#
+# Options:
+#   --slim   Install without shared infrastructure (Traefik, Docker network,
+#            root docker-compose.yml). The app exposes ports directly.
 # =============================================================================
 
 REPO="kenfdev/container-wt"
 BRANCH="main"
+
+# --- Parse flags ---
+
+SLIM=false
+for arg in "$@"; do
+  case "$arg" in
+    --slim) SLIM=true ;;
+  esac
+done
 
 # --- Colors ---
 
@@ -63,6 +77,9 @@ fi
 echo
 info "${BOLD}Installing container-wt template${NC}"
 info "Source: github.com/${REPO}@${BRANCH}"
+if [ "$SLIM" = true ]; then
+  info "Mode: ${BOLD}slim${NC} (no shared infrastructure)"
+fi
 echo
 
 # --- Handle existing files ---
@@ -116,7 +133,11 @@ mkdir -p .worktree
 cp "$TEMPLATE_DIR/.worktree/Dockerfile.base" .worktree/
 cp "$TEMPLATE_DIR/.worktree/Dockerfile.app" .worktree/
 cp "$TEMPLATE_DIR/.worktree/Dockerfile.local.example" .worktree/
-cp "$TEMPLATE_DIR/.worktree/docker-compose.yml" .worktree/
+if [ "$SLIM" = true ]; then
+  cp "$TEMPLATE_DIR/.worktree/docker-compose.slim.yml" .worktree/docker-compose.yml
+else
+  cp "$TEMPLATE_DIR/.worktree/docker-compose.yml" .worktree/
+fi
 cp "$TEMPLATE_DIR/.worktree/docker-compose.local.example.yml" .worktree/
 cp "$TEMPLATE_DIR/.worktree/init.sh" .worktree/
 chmod +x .worktree/init.sh
@@ -126,8 +147,12 @@ cp "$TEMPLATE_DIR/.worktree/.env.app.template" .worktree/
 
 # --- Install root-level files ---
 
-info "Installing docker-compose.yml (infra)..."
-cp "$TEMPLATE_DIR/docker-compose.yml" .
+if [ "$SLIM" = true ]; then
+  info "Skipping root docker-compose.yml (slim mode)."
+else
+  info "Installing docker-compose.yml (infra)..."
+  cp "$TEMPLATE_DIR/docker-compose.yml" .
+fi
 
 info "Installing .worktreeinclude..."
 cp "$TEMPLATE_DIR/.worktreeinclude" .
@@ -144,7 +169,11 @@ chmod +x .worktree/hooks/on-delete.sh
 
 GITIGNORE_ENTRIES=(
   '# container-wt generated files'
-  '.env'
+)
+if [ "$SLIM" = false ]; then
+  GITIGNORE_ENTRIES+=('.env')
+fi
+GITIGNORE_ENTRIES+=(
   '.worktree/.env'
   '.worktree/.env.app'
   '.worktree/docker-compose.local.yml'
@@ -190,14 +219,22 @@ echo
 info "${BOLD}Next steps:${NC}"
 info "  1. Edit .worktree/Dockerfile.base       -- add team-wide system deps"
 info "  2. Edit .worktree/Dockerfile.app         -- add project-specific deps"
-info "  3. Edit docker-compose.yml                   -- add infra (Postgres, Redis, etc.)"
-info "  4. Edit .worktree/.env.app.template            -- add per-worktree env vars"
-info "  5. Start shared infrastructure:"
-info "       docker compose up -d"
-info "  6. Start the app container:"
-info "       cd .worktree && docker compose up -d --build"
-info "  7. Enter the container:"
-info "       cd .worktree && docker compose exec app zsh"
+if [ "$SLIM" = true ]; then
+  info "  3. Edit .worktree/.env.app.template            -- add per-worktree env vars"
+  info "  4. Start the app container:"
+  info "       cd .worktree && docker compose up -d --build"
+  info "  5. Enter the container:"
+  info "       cd .worktree && docker compose exec app zsh"
+else
+  info "  3. Edit docker-compose.yml                   -- add infra (Postgres, Redis, etc.)"
+  info "  4. Edit .worktree/.env.app.template            -- add per-worktree env vars"
+  info "  5. Start shared infrastructure:"
+  info "       docker compose up -d"
+  info "  6. Start the app container:"
+  info "       cd .worktree && docker compose up -d --build"
+  info "  7. Enter the container:"
+  info "       cd .worktree && docker compose exec app zsh"
+fi
 echo
 info "For personal Dockerfile customization:"
 info "  1. Copy .worktree/Dockerfile.local.example to .worktree/Dockerfile.local"
