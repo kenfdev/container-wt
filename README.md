@@ -25,6 +25,22 @@ The installer will:
 - Run `init.sh` to generate `.env` files
 - Prompt to backup if existing files are detected
 
+### Slim mode
+
+For projects that don't need shared infrastructure (Traefik, Docker network, Postgres, Redis, etc.), use `--slim` to install a standalone app container setup:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/kenfdev/container-wt/main/install.sh | bash -s -- --slim
+```
+
+Slim mode skips:
+- Root `docker-compose.yml` (shared infrastructure)
+- Root `.env` (infrastructure variables)
+- Docker network creation
+- Traefik labels and routing
+
+The app exposes ports directly (default `3000:3000`) instead of routing through Traefik.
+
 ## Directory Structure
 
 ```
