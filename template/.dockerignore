@@ -1,0 +1,5 @@
+# Ignore everything by default — Dockerfiles only COPY from .worktree/
+*
+
+# Allow the files that Dockerfiles actually need
+!.worktree/

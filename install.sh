@@ -157,6 +157,9 @@ fi
 info "Installing .worktreeinclude..."
 cp "$TEMPLATE_DIR/.worktreeinclude" .
 
+info "Installing .dockerignore..."
+cp "$TEMPLATE_DIR/.dockerignore" .
+
 # Install worktree hooks
 info "Installing .worktree/hooks/..."
 mkdir -p .worktree/hooks
