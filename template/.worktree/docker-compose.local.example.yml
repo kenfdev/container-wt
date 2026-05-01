@@ -10,3 +10,5 @@
 #     build:
 #       context: ..
 #       dockerfile: .worktree/Dockerfile.local
+#       args:
+#         BASE_IMAGE: "${PROJECT_NAME}-dev-base:local"
