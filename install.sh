@@ -245,8 +245,9 @@ info "  2. Copy .worktree/docker-compose.local.example.yml to .worktree/docker-c
 info "  3. Uncomment the build override in docker-compose.local.yml"
 info "  4. Add to .worktreeinclude.local: .worktree/Dockerfile.local"
 echo
-info "If you are using git-wt, configure worktree hooks (recommended):"
-info "  git config wt.basedir .git/wt"
-info "  git config --add wt.hook \".worktree/hooks/on-create.sh\""
-info "  git config --add wt.deletehook \".worktree/hooks/on-delete.sh\""
+info "If you are using worktrunk, configure worktree hooks (recommended):"
+info "  wt config create --project"
+info "  # Then add to .config/wt.toml:"
+info "  pre-start = \".worktree/hooks/on-create.sh\""
+info "  pre-remove = \".worktree/hooks/on-delete.sh\""
 echo
