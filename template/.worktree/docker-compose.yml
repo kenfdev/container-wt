@@ -21,6 +21,10 @@ services:
     build:
       context: ..
       dockerfile: .worktree/Dockerfile.base
+      # Uncomment to forward your host SSH agent into the build context.
+      # Required if your Dockerfile clones private repos over SSH.
+      # ssh:
+      #   - default
 
   app:
     depends_on:
