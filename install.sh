@@ -292,3 +292,90 @@ info "  # Then add to .config/wt.toml:"
 info "  pre-start = \".worktree/hooks/on-create.sh\""
 info "  pre-remove = \".worktree/hooks/on-delete.sh\""
 echo
+
+# --- AI setup prompt ---
+
+echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${BOLD}  Paste this prompt into your AI assistant to finish the project setup:${NC}"
+echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo
+if [ "$SLIM" = true ]; then
+cat <<'PROMPT'
+I've just set up a Docker-based development environment in this project.
+Help me finish configuring it for this specific project.
+
+Work through the following steps one at a time, asking me to confirm or provide
+input before making any file changes. Never do multiple steps at once.
+
+Step 1 — Tech stack detection
+Read the project files (package.json, go.mod, Pipfile, Gemfile, Cargo.toml,
+pom.xml, etc.) and tell me what language runtime(s) and package manager(s) you
+detected. Ask me to confirm or correct before proceeding.
+
+Step 2 — App port
+Based on the detected stack and any config files or README, what port does the
+dev server run on? Tell me your best guess and ask me to confirm or override.
+You will update the port mapping in .worktree/docker-compose.yml to this port.
+
+Step 3 — Runtime environment variables
+Based on any .env.example or README in the project, show me the environment
+variables you plan to add to .worktree/.env.app.template and ask me to confirm
+or edit them before writing.
+
+Step 4 — Personal Dockerfile customization
+Ask me to paste the contents of any previous personal Dockerfile I've used on
+other projects (editors, AI CLIs, shell configs, personal tools, etc.).
+If I provide one, adapt it for the base image used in this project's
+Dockerfile.base and write it to .worktree/Dockerfile.local.
+If I have nothing to paste, tell me that .worktree/Dockerfile.local is where I
+can add personal tooling on top of the team image, and give me two or three
+example snippets relevant to the detected stack as a starting point.
+
+After all steps are confirmed and applied, summarize every file changed and
+what was done.
+PROMPT
+else
+cat <<'PROMPT'
+I've just set up a Docker-based development environment in this project.
+Help me finish configuring it for this specific project.
+
+Work through the following steps one at a time, asking me to confirm or provide
+input before making any file changes. Never do multiple steps at once.
+
+Step 1 — Tech stack detection
+Read the project files (package.json, go.mod, Pipfile, Gemfile, Cargo.toml,
+pom.xml, etc.) and tell me what language runtime(s) and package manager(s) you
+detected. Ask me to confirm or correct before proceeding.
+
+Step 2 — App port
+Based on the detected stack and any config files or README, what port does the
+dev server run on? Tell me your best guess and ask me to confirm or override.
+You will update the reverse-proxy routing label in .worktree/docker-compose.yml
+to this port.
+
+Step 3 — Infrastructure services
+Ask me which backing services this project needs (e.g. Postgres, Redis, MySQL,
+S3-compatible storage). Uncomment and configure the relevant services in
+docker-compose.yml only for what I confirm.
+
+Step 4 — Runtime environment variables
+Based on the services confirmed in Step 3 and any .env.example or README in the
+project, show me the environment variables you plan to add to
+.worktree/.env.app.template and ask me to confirm or edit them before writing.
+
+Step 5 — Personal Dockerfile customization
+Ask me to paste the contents of any previous personal Dockerfile I've used on
+other projects (editors, AI CLIs, shell configs, personal tools, etc.).
+If I provide one, adapt it for the base image used in this project's
+Dockerfile.base and write it to .worktree/Dockerfile.local.
+If I have nothing to paste, tell me that .worktree/Dockerfile.local is where I
+can add personal tooling on top of the team image, and give me two or three
+example snippets relevant to the detected stack as a starting point.
+
+After all steps are confirmed and applied, summarize every file changed and
+what was done.
+PROMPT
+fi
+echo
+echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo
