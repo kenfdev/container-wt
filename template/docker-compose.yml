@@ -62,4 +62,5 @@ services:
 
 networks:
   devnet:
+    external: true
     name: ${NETWORK_NAME:-devnet-myapp}
