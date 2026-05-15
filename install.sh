@@ -208,11 +208,6 @@ fi
 
 success "Template files installed."
 
-# --- Run init.sh to generate .env files ---
-
-info "Running init.sh to generate .env files..."
-.worktree/init.sh
-
 # --- Optionally set up local environment files ---
 
 SETUP_LOCAL=false
@@ -249,6 +244,11 @@ if [[ "$answer" =~ ^[Yy]$ ]]; then
     success "Created .worktree/docker-compose.local.yml"
   fi
 fi
+
+# --- Run init.sh to generate .env files ---
+
+info "Running init.sh to generate .env files..."
+.worktree/init.sh
 
 # --- Done ---
 
