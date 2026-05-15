@@ -213,6 +213,43 @@ success "Template files installed."
 info "Running init.sh to generate .env files..."
 .worktree/init.sh
 
+# --- Optionally set up local environment files ---
+
+SETUP_LOCAL=false
+echo
+answer=$(ask "Set up local environment files? (Dockerfile.local + docker-compose.local.yml) [y/N]:" "n")
+if [[ "$answer" =~ ^[Yy]$ ]]; then
+  SETUP_LOCAL=true
+
+  # Dockerfile.local
+  if [ -f ".worktree/Dockerfile.local" ]; then
+    ow=$(ask ".worktree/Dockerfile.local already exists. Overwrite? [y/N]:" "n")
+    if [[ "$ow" =~ ^[Yy]$ ]]; then
+      cp ".worktree/Dockerfile.local.example" ".worktree/Dockerfile.local"
+      success "Copied Dockerfile.local.example -> Dockerfile.local"
+    else
+      warn "Skipped .worktree/Dockerfile.local (already exists)"
+    fi
+  else
+    cp ".worktree/Dockerfile.local.example" ".worktree/Dockerfile.local"
+    success "Created .worktree/Dockerfile.local"
+  fi
+
+  # docker-compose.local.yml
+  if [ -f ".worktree/docker-compose.local.yml" ]; then
+    ow=$(ask ".worktree/docker-compose.local.yml already exists. Overwrite? [y/N]:" "n")
+    if [[ "$ow" =~ ^[Yy]$ ]]; then
+      cp ".worktree/docker-compose.local.example.yml" ".worktree/docker-compose.local.yml"
+      success "Copied docker-compose.local.example.yml -> docker-compose.local.yml"
+    else
+      warn "Skipped .worktree/docker-compose.local.yml (already exists)"
+    fi
+  else
+    cp ".worktree/docker-compose.local.example.yml" ".worktree/docker-compose.local.yml"
+    success "Created .worktree/docker-compose.local.yml"
+  fi
+fi
+
 # --- Done ---
 
 echo
@@ -237,11 +274,17 @@ else
   info "       cd .worktree && docker compose exec app zsh"
 fi
 echo
-info "For personal Dockerfile customization:"
-info "  1. Copy .worktree/Dockerfile.local.example to .worktree/Dockerfile.local"
-info "  2. Copy .worktree/docker-compose.local.example.yml to .worktree/docker-compose.local.yml"
-info "  3. Uncomment the build override in docker-compose.local.yml"
-info "  4. Add to .worktreeinclude.local: .worktree/Dockerfile.local"
+if [ "$SETUP_LOCAL" = true ]; then
+  info "For personal Dockerfile customization:"
+  info "  1. Edit .worktree/Dockerfile.local        -- add your personal tools"
+  info "  2. Add to .worktreeinclude.local: .worktree/Dockerfile.local"
+else
+  info "For personal Dockerfile customization:"
+  info "  1. Copy .worktree/Dockerfile.local.example to .worktree/Dockerfile.local"
+  info "  2. Copy .worktree/docker-compose.local.example.yml to .worktree/docker-compose.local.yml"
+  info "  3. Edit .worktree/Dockerfile.local        -- add your personal tools"
+  info "  4. Add to .worktreeinclude.local: .worktree/Dockerfile.local"
+fi
 echo
 info "If you are using worktrunk, configure worktree hooks (recommended):"
 info "  wt config create --project"

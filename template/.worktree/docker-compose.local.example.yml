@@ -8,11 +8,11 @@
 # The `image:` tag below is intentionally different from the team base
 # (${PROJECT_NAME}-dev-base:local) so your personal build does not overwrite it.
 
-# services:
-#   app:
-#     image: "${PROJECT_NAME}-dev-local:${WORKTREE_NAME}"
-#     build:
-#       context: ..
-#       dockerfile: .worktree/Dockerfile.local
-#       args:
-#         BASE_IMAGE: "${PROJECT_NAME}-dev-base:local"
+services:
+  app:
+    image: "${PROJECT_NAME}-dev-local:${WORKTREE_NAME}"
+    build:
+      context: ..
+      dockerfile: .worktree/Dockerfile.local
+      args:
+        BASE_IMAGE: "${PROJECT_NAME}-dev-base:local"
