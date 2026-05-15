@@ -151,6 +151,9 @@ if [ "$SLIM" = true ]; then
 else
   info "Installing docker-compose.yml (infra)..."
   cp "$TEMPLATE_DIR/docker-compose.yml" .
+  info "Installing .worktree/switch-branch.sh..."
+  cp "$TEMPLATE_DIR/.worktree/switch-branch.sh" .worktree/
+  chmod +x .worktree/switch-branch.sh
 fi
 
 info "Installing .worktreeinclude..."
@@ -173,7 +176,7 @@ GITIGNORE_ENTRIES=(
   '# container-wt generated files'
 )
 if [ "$SLIM" = false ]; then
-  GITIGNORE_ENTRIES+=('.env')
+  GITIGNORE_ENTRIES+=('.env' '.worktree/traefik/dynamic.yml')
 fi
 GITIGNORE_ENTRIES+=(
   '.worktree/.env'
@@ -270,7 +273,10 @@ else
   info "       docker compose up -d"
   info "  5. Start the app container:"
   info "       cd .worktree && docker compose up -d --build"
-  info "  6. Enter the container:"
+  info "  6. Activate Traefik routing to this worktree:"
+  info "       .worktree/switch-branch.sh <worktree-name>          # defaults to port 3000"
+  info "       .worktree/switch-branch.sh <worktree-name> <port>   # custom port"
+  info "  7. Enter the container:"
   info "       cd .worktree && docker compose exec app zsh"
 fi
 echo
@@ -350,8 +356,8 @@ detected. Ask me to confirm or correct before proceeding.
 Step 2 — App port
 Based on the detected stack and any config files or README, what port does the
 dev server run on? Tell me your best guess and ask me to confirm or override.
-You will update the reverse-proxy routing label in .worktree/docker-compose.yml
-to this port.
+Note this port — the user will pass it to .worktree/switch-branch.sh to activate
+Traefik routing: .worktree/switch-branch.sh <worktree-name> <port>
 
 Step 3 — Infrastructure services
 Ask me which backing services this project needs (e.g. Postgres, Redis, MySQL,
