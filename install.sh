@@ -85,7 +85,7 @@ echo
 # --- Handle existing files ---
 
 EXISTING_FILES=()
-for f in .worktree/docker-compose.yml .worktree/Dockerfile.base .worktree/Dockerfile.app .worktree/init.sh; do
+for f in .worktree/docker-compose.yml .worktree/Dockerfile.base .worktree/init.sh; do
   [ -f "$f" ] && EXISTING_FILES+=("$f")
 done
 
@@ -131,7 +131,6 @@ fi
 info "Installing .worktree/..."
 mkdir -p .worktree
 cp "$TEMPLATE_DIR/.worktree/Dockerfile.base" .worktree/
-cp "$TEMPLATE_DIR/.worktree/Dockerfile.app" .worktree/
 cp "$TEMPLATE_DIR/.worktree/Dockerfile.local.example" .worktree/
 if [ "$SLIM" = true ]; then
   cp "$TEMPLATE_DIR/.worktree/docker-compose.slim.yml" .worktree/docker-compose.yml
@@ -220,22 +219,21 @@ echo
 success "container-wt installed successfully!"
 echo
 info "${BOLD}Next steps:${NC}"
-info "  1. Edit .worktree/Dockerfile.base       -- add team-wide system deps"
-info "  2. Edit .worktree/Dockerfile.app         -- add project-specific deps"
+info "  1. Edit .worktree/Dockerfile.base       -- add team + project deps (runtimes, tools, libs)"
 if [ "$SLIM" = true ]; then
-  info "  3. Edit .worktree/.env.app.template            -- add per-worktree env vars"
-  info "  4. Start the app container:"
+  info "  2. Edit .worktree/.env.app.template            -- add per-worktree env vars"
+  info "  3. Start the app container:"
   info "       cd .worktree && docker compose up -d --build"
-  info "  5. Enter the container:"
+  info "  4. Enter the container:"
   info "       cd .worktree && docker compose exec app zsh"
 else
-  info "  3. Edit docker-compose.yml                   -- add infra (Postgres, Redis, etc.)"
-  info "  4. Edit .worktree/.env.app.template            -- add per-worktree env vars"
-  info "  5. Start shared infrastructure:"
+  info "  2. Edit docker-compose.yml                   -- add infra (Postgres, Redis, etc.)"
+  info "  3. Edit .worktree/.env.app.template            -- add per-worktree env vars"
+  info "  4. Start shared infrastructure:"
   info "       docker compose up -d"
-  info "  6. Start the app container:"
+  info "  5. Start the app container:"
   info "       cd .worktree && docker compose up -d --build"
-  info "  7. Enter the container:"
+  info "  6. Enter the container:"
   info "       cd .worktree && docker compose exec app zsh"
 fi
 echo

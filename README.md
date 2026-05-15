@@ -47,8 +47,7 @@ The app exposes ports directly (default `3000:3000`) instead of routing through 
 myapp/                                    # <-- you are here (main worktree)
   .git/                                   # git database (directory)
   .worktree/                          # container-wt files
-    Dockerfile.base                       # team-shared base image
-    Dockerfile.app                        # default app image (FROM base)
+    Dockerfile.base                       # team-shared image (OS + project deps)
     docker-compose.yml                    # per-worktree app service
     docker-compose.local.yml              # personal overrides (gitignored)
     docker-compose.local.example.yml      # template for personal overrides
@@ -138,14 +137,12 @@ Run infra commands from the **project root** and app commands from the **`.workt
 ## Dockerfile Layering
 
 ```
-.worktree/Dockerfile.base     Team-shared base (ubuntu + git, curl, zsh)
+.worktree/Dockerfile.base     Team-shared (debian + git, curl, zsh, project deps)
       |
-.worktree/Dockerfile.app      Default app (project-specific deps)
-      |
-.worktree/Dockerfile.local       Personal (neovim, claude, etc.)
+.worktree/Dockerfile.local    Personal (neovim, AI CLIs, etc. — gitignored)
 ```
 
-All Dockerfiles use `ARG BASE_IMAGE` / `FROM ${BASE_IMAGE}`. The base image name is passed as a build arg by the compose file, and `depends_on` ensures the base image is always built first.
+The team `Dockerfile.base` covers everything shared by the team — OS packages, language runtimes, build tools, client libraries. Personal tooling is layered on top via an optional `Dockerfile.local` (gitignored). `Dockerfile.local` uses `ARG BASE_IMAGE` / `FROM ${BASE_IMAGE}` so it inherits from the team base; the image name is passed as a build arg by `docker-compose.local.yml`, and `depends_on` ensures the base is built first.
 
 ### Personal Dockerfile Setup
 

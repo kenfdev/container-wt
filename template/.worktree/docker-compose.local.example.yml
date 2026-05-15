@@ -2,11 +2,15 @@
 # Copy this to docker-compose.local.yml and customize.
 # This file is gitignored — your overrides stay local.
 #
-# Use this to override the app service's build to use your personal Dockerfile.
+# Use this to layer a personal Dockerfile on top of the team base image.
 # See .worktree/Dockerfile.local.example for a starting point.
+#
+# The `image:` tag below is intentionally different from the team base
+# (${PROJECT_NAME}-dev-base:local) so your personal build does not overwrite it.
 
 # services:
 #   app:
+#     image: "${PROJECT_NAME}-dev-local:${WORKTREE_NAME}"
 #     build:
 #       context: ..
 #       dockerfile: .worktree/Dockerfile.local

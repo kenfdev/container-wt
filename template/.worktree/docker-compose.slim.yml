@@ -22,11 +22,10 @@ services:
   app:
     depends_on:
       - base
-    build:
-      context: ..
-      dockerfile: .worktree/Dockerfile.app
-      args:
-        BASE_IMAGE: "${PROJECT_NAME}-dev-base:local"
+    # By default the app runs the team base image directly.
+    # To layer personal tooling on top, copy docker-compose.local.example.yml
+    # to docker-compose.local.yml — its build override targets this image: tag.
+    image: "${PROJECT_NAME}-dev-base:local"
     tty: true
     stdin_open: true
     container_name: "app-${PROJECT_NAME}-${WORKTREE_NAME}"
@@ -68,7 +67,7 @@ services:
 #     # Add these under the `app.volumes` section above:
 #     # - npm-cache:/home/node/.npm
 #     # - go-mod-cache:/go/pkg/mod
-#     # - pip-cache:/home/vscode/.cache/pip
+#     # - pip-cache:/home/dev/.cache/pip
 #
 # volumes:
 #   npm-cache:
