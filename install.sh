@@ -283,23 +283,23 @@ I've installed container-wt simple mode in this project.
 
 Simple mode is CLI/container-shell first. It does not expose ports by default.
 
+Before doing anything, read both container-wt docs:
+- https://raw.githubusercontent.com/kenfdev/container-wt/main/docs/ARCHITECTURE.md
+- https://raw.githubusercontent.com/kenfdev/container-wt/main/docs/SETUP_ASSISTANT.md
+
 Files skipped or intentionally left unmodified during install:
 ${skipped_text}
 
-Work through these steps one at a time. Inspect first, propose changes, and ask
-before editing. Do not overwrite existing user-owned files.
+Follow the Simple Mode section in SETUP_ASSISTANT.md.
 
-1. Detect the project stack and package manager.
-2. Review .container/Dockerfile and configure only the runtime/tools this project needs.
-3. Review existing env examples/docs and propose .container/.env.app changes.
-4. If this project needs ports even in simple mode, propose the minimal
-   .container/docker-compose.yml change. Otherwise leave ports absent.
-5. Run or propose the exact commands to start and enter the container:
-   cd .container
-   docker compose up -d --build
-   docker compose exec app zsh
+Key constraints:
+- Inspect the project first.
+- Propose a setup plan before editing.
+- Ask for approval before editing any file.
+- Do not overwrite skipped or user-owned files.
+- Keep simple mode portless unless the project clearly needs a port and I approve it.
 
-Summarize every file changed and why.
+After approval, finalize the project-specific container setup and summarize every file changed.
 PROMPT
 else
 cat <<PROMPT
@@ -308,29 +308,26 @@ I've installed container-wt web mode in this project.
 Web mode uses Traefik file-provider routing. The stable route is:
 http://localhost:9876
 
+Before doing anything, read both container-wt docs:
+- https://raw.githubusercontent.com/kenfdev/container-wt/main/docs/ARCHITECTURE.md
+- https://raw.githubusercontent.com/kenfdev/container-wt/main/docs/SETUP_ASSISTANT.md
+
 Files skipped or intentionally left unmodified during install:
 ${skipped_text}
 
-Work through these steps one at a time. Inspect first, propose changes, and ask
-before editing. Do not overwrite existing user-owned files.
+Follow the Web Mode section in SETUP_ASSISTANT.md.
 
-1. Detect the project stack and package manager.
-2. Review .container/Dockerfile and configure only the runtime/tools this project needs.
-3. Identify the app's internal dev-server port and update APP_PORT in .container/.env if needed.
-4. Inspect existing root Compose files and root .env.
-5. If root .env exists, propose a minimal change so COMPOSE_FILE includes
-   docker-compose.infra.yml without removing existing compose files and without
-   referencing missing files. Ensure COMPOSE_PROFILES enables infra where intended.
-6. Configure shared services in docker-compose.infra.yml only if I confirm they are needed.
-7. Review existing env examples/docs and propose .container/.env.app changes.
-8. Verify the workflow:
-   docker compose up -d
-   cd .container
-   docker compose up -d --build
-   cd .. && .container/route.sh
-   open http://localhost:9876
+Key constraints:
+- Inspect the project first.
+- Propose a setup plan before editing.
+- Ask for approval before editing any file.
+- Do not overwrite skipped or user-owned files.
+- Preserve existing root Compose behavior.
+- If root .env exists, propose a minimal COMPOSE_FILE/COMPOSE_PROFILES patch.
+- Do not reference missing Compose files.
+- Configure shared services only after I confirm they are needed.
 
-Summarize every file changed and why.
+After approval, finalize the project-specific web container setup and summarize every file changed.
 PROMPT
 fi
 

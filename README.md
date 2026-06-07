@@ -30,6 +30,13 @@ curl -fsSL https://raw.githubusercontent.com/kenfdev/container-wt/main/install.s
 
 The installer copies common files plus the selected mode, runs `.container/init.sh`, then prints a prompt you can paste into a coding assistant for project-specific setup.
 
+The printed prompt references:
+
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- [docs/SETUP_ASSISTANT.md](docs/SETUP_ASSISTANT.md)
+
+Use those docs when asking an assistant to adapt the generic template to a specific project.
+
 ## Installed Layout
 
 Both modes use:
