@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Route http://localhost:${TRAEFIK_PORT} to one running worktree app container.
-# Run from any worktree root.
+# Run from anywhere inside the repository/worktree.
 
 usage() {
   cat <<'EOF'
@@ -18,13 +18,19 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   exit 0
 fi
 
-if [ ! -f ".container/.env" ]; then
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+WORKTREE_ROOT=$(dirname "$SCRIPT_DIR")
+CONTAINER_DIR="${WORKTREE_ROOT}/.container"
+
+cd "$WORKTREE_ROOT"
+
+if [ ! -f "${CONTAINER_DIR}/.env" ]; then
   echo "[container-wt] Missing .container/.env. Run .container/init.sh first." >&2
   exit 1
 fi
 
 # shellcheck source=/dev/null
-source ".container/.env"
+source "${CONTAINER_DIR}/.env"
 
 TARGET_WORKTREE="${1:-$WORKTREE_NAME}"
 TARGET_PORT="${2:-$APP_PORT}"

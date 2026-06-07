@@ -118,10 +118,11 @@ When finalizing web mode:
     docker compose up -d
     cd .container
     docker compose up -d --build
-    cd ..
-    .container/route.sh
+    ./route.sh
     open http://localhost:9876
     ```
+
+`.container/init.sh` and `.container/route.sh` can be run from the worktree root or from inside `.container/`.
 
 ## Root COMPOSE_FILE Guidance
 

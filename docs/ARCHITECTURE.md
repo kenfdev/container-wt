@@ -187,6 +187,7 @@ ${MAIN_REPO_DIR}/.container/traefik/dynamic.yml
 ```
 
 It resolves the main repo from git metadata, so it can be run from any worktree.
+It can be run from the worktree root or from inside `.container/`.
 
 Supported commands:
 

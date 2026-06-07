@@ -103,7 +103,6 @@ docker compose up -d --build
 Route localhost to the current worktree:
 
 ```bash
-cd ..
 .container/route.sh
 open http://localhost:9876
 ```
@@ -143,6 +142,8 @@ git worktree add ../feature-x -b feature-x
 cd ../feature-x
 .container/init.sh
 ```
+
+`.container/init.sh` and `.container/route.sh` can be run from the worktree root or from inside `.container/`.
 
 Optional hook automation:
 

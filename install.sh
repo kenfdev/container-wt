@@ -262,7 +262,7 @@ else
   info "  docker compose up -d"
   info "  cd .container"
   info "  docker compose up -d --build"
-  info "  cd .. && .container/route.sh"
+  info "  ./route.sh"
   info "  open http://localhost:9876"
 fi
 
