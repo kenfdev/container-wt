@@ -115,6 +115,7 @@ Route an explicit worktree:
 ```
 
 `route.sh` expects the target app container to already be running.
+After writing the Traefik route config, it restarts the project Traefik container so route changes apply reliably on Docker Desktop for Mac.
 
 ## Root Compose In Web Mode
 
@@ -143,7 +144,7 @@ cd ../feature-x
 .container/init.sh
 ```
 
-`.container/init.sh` and `.container/route.sh` can be run from the worktree root or from inside `.container/`.
+All `.container` scripts can be run from anywhere inside the worktree. They resolve the worktree root from their own path before reading or writing files.
 
 Optional hook automation:
 

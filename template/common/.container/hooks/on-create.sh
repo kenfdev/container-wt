@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Run from the new worktree root after creating a git worktree.
+# Run from anywhere inside the new worktree after creating a git worktree.
 # Copies ignored files from the main worktree, then initializes this worktree's
 # container environment.
+
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+WORKTREE_ROOT=$(dirname "$(dirname "$SCRIPT_DIR")")
+CONTAINER_DIR="${WORKTREE_ROOT}/.container"
+
+cd "$WORKTREE_ROOT"
 
 gitdir=$(git rev-parse --git-common-dir)
 case "$gitdir" in
   /*) ;;
-  *) gitdir="$PWD/$gitdir" ;;
+  *) gitdir="$WORKTREE_ROOT/$gitdir" ;;
 esac
 GIT_COMMON_DIR=$(cd "$gitdir" && pwd)
 MAIN_REPO_DIR=$(dirname "$GIT_COMMON_DIR")
@@ -66,11 +72,11 @@ copy_from_include_file() {
   done < "$include_file"
 }
 
-copy_from_include_file "${MAIN_REPO_DIR}/.worktreeinclude" "$PWD"
-copy_from_include_file "${MAIN_REPO_DIR}/.worktreeinclude.local" "$PWD"
+copy_from_include_file "${MAIN_REPO_DIR}/.worktreeinclude" "$WORKTREE_ROOT"
+copy_from_include_file "${MAIN_REPO_DIR}/.worktreeinclude.local" "$WORKTREE_ROOT"
 
-if [ -x ".container/init.sh" ]; then
-  .container/init.sh
+if [ -x "${CONTAINER_DIR}/init.sh" ]; then
+  "${CONTAINER_DIR}/init.sh"
 else
   echo "[container-wt] Missing executable .container/init.sh" >&2
   exit 1

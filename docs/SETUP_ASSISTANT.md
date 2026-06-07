@@ -85,6 +85,7 @@ When finalizing simple mode:
 ## Web Mode Procedure
 
 Web mode routes `http://localhost:9876` through Traefik to one active worktree app container.
+`.container/route.sh` restarts the project Traefik container after writing route config so file-provider changes apply reliably on Docker Desktop for Mac.
 
 When finalizing web mode:
 
@@ -122,7 +123,7 @@ When finalizing web mode:
     open http://localhost:9876
     ```
 
-`.container/init.sh` and `.container/route.sh` can be run from the worktree root or from inside `.container/`.
+All `.container` scripts can be run from anywhere inside the worktree. They resolve the worktree root from their own path before reading or writing files.
 
 ## Root COMPOSE_FILE Guidance
 

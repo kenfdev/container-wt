@@ -35,6 +35,7 @@ source "${CONTAINER_DIR}/.env"
 TARGET_WORKTREE="${1:-$WORKTREE_NAME}"
 TARGET_PORT="${2:-$APP_PORT}"
 CONTAINER_NAME="app-${PROJECT_NAME}-${TARGET_WORKTREE}"
+TRAEFIK_CONTAINER="traefik-${PROJECT_NAME}"
 
 if ! docker ps --format '{{.Names}}' | grep -qx "$CONTAINER_NAME"; then
   echo "[container-wt] Container ${CONTAINER_NAME} is not running." >&2
@@ -82,5 +83,17 @@ http:
         servers:
           - url: "http://${CONTAINER_NAME}:${TARGET_PORT}"
 EOF
+
+if ! docker ps --format '{{.Names}}' | grep -qx "$TRAEFIK_CONTAINER"; then
+  echo "[container-wt] Traefik container ${TRAEFIK_CONTAINER} is not running." >&2
+  echo "[container-wt] Start infra with:" >&2
+  echo "  docker compose up -d" >&2
+  exit 1
+fi
+
+# Docker Desktop for Mac can miss fsnotify events for bind-mounted files.
+# Restart Traefik after changing the file-provider config so the route switch
+# is deterministic.
+docker restart "$TRAEFIK_CONTAINER" >/dev/null
 
 echo "[container-wt] http://localhost:${TRAEFIK_PORT} -> ${CONTAINER_NAME}:${TARGET_PORT}"

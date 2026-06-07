@@ -209,9 +209,12 @@ This avoids depending on a specific Host header.
 
 `route.sh` requires the target app container to already be running. It does not build or start containers.
 
+After writing `dynamic.yml`, `route.sh` restarts `traefik-${PROJECT_NAME}`. Traefik's file provider can hot reload through filesystem notifications, but Docker Desktop for Mac can miss those events on bind-mounted files. Restarting Traefik makes active route changes deterministic in local and remote development environments.
+
 ## Hooks
 
 Hooks are installed but not wired automatically.
+All `.container` scripts resolve the worktree root from their own path, so they can be run from the worktree root, from `.container/`, or from another directory inside the worktree.
 
 `on-create.sh`:
 
