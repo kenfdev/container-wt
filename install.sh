@@ -1,39 +1,8 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
-
-# =============================================================================
-# container-wt installer
-#
-# Installs the container-wt template into the current project.
-# Downloads template files from GitHub and sets up the plain Docker workflow.
-#
-# Usage:
-#   curl -fsSL https://raw.githubusercontent.com/kenfdev/container-wt/main/install.sh | bash
-#   curl -fsSL https://raw.githubusercontent.com/kenfdev/container-wt/main/install.sh | bash -s -- --slim
-#
-# Or download and run:
-#   curl -fsSL -o install.sh https://raw.githubusercontent.com/kenfdev/container-wt/main/install.sh
-#   chmod +x install.sh
-#   ./install.sh [--slim]
-#
-# Options:
-#   --slim   Install without shared infrastructure (Traefik, Docker network,
-#            root docker-compose.yml). The app exposes ports directly.
-# =============================================================================
 
 REPO="kenfdev/container-wt"
 BRANCH="main"
-
-# --- Parse flags ---
-
-SLIM=false
-for arg in "$@"; do
-  case "$arg" in
-    --slim) SLIM=true ;;
-  esac
-done
-
-# --- Colors ---
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -42,346 +11,328 @@ BLUE='\033[0;34m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-info()    { echo -e "${BLUE}[container-wt]${NC} $*"; }
-warn()    { echo -e "${YELLOW}[container-wt]${NC} $*"; }
-error()   { echo -e "${RED}[container-wt]${NC} $*" >&2; }
+info() { echo -e "${BLUE}[container-wt]${NC} $*"; }
+warn() { echo -e "${YELLOW}[container-wt]${NC} $*"; }
+error() { echo -e "${RED}[container-wt]${NC} $*" >&2; }
 success() { echo -e "${GREEN}[container-wt]${NC} $*"; }
 
-# Prompt helper that reads from /dev/tty (works with curl | bash).
-ask() {
-  local prompt="$1"
-  local default="$2"
-  local answer
-  echo -en "${BLUE}[container-wt]${NC} ${prompt} " > /dev/tty
-  read -r answer < /dev/tty
-  echo "${answer:-$default}"
+usage() {
+  cat <<EOF
+Usage: install.sh [--simple|--web]
+
+Modes:
+  simple   CLI/container-shell setup. No ports or Traefik.
+  web      Traefik localhost route on port 9876.
+EOF
 }
 
-# --- Prerequisites ---
+MODE=""
+for arg in "$@"; do
+  case "$arg" in
+    --simple) MODE="simple" ;;
+    --web) MODE="web" ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      error "Unknown option: $arg"
+      usage >&2
+      exit 1
+      ;;
+  esac
+done
 
-for cmd in curl git tar envsubst; do
+for cmd in curl git tar; do
   if ! command -v "$cmd" >/dev/null 2>&1; then
     error "${cmd} is required but not installed."
-    if [ "$cmd" = "envsubst" ]; then
-      error "On macOS: brew install gettext"
-    fi
     exit 1
   fi
 done
 
-if ! git rev-parse --git-dir > /dev/null 2>&1; then
-  error "Not a git repository. Run this from inside your project."
+if ! git rev-parse --git-dir >/dev/null 2>&1; then
+  error "Not a git repository. Run this from your project root."
   exit 1
 fi
 
+ask_tty() {
+  local prompt="$1"
+  local default="$2"
+  local answer
+  printf "${BLUE}[container-wt]${NC} %s " "$prompt" >/dev/tty
+  read -r answer </dev/tty
+  printf '%s' "${answer:-$default}"
+}
+
+if [ -z "$MODE" ]; then
+  while true; do
+    echo
+    info "${BOLD}Choose setup:${NC}"
+    info "  1. simple  CLI/container shell. No ports or Traefik. [default]"
+    info "  2. web     Traefik localhost route for a web app."
+    answer=$(ask_tty "Setup [simple]:" "simple")
+    case "$answer" in
+      ""|1|s|simple|S|Simple) MODE="simple"; break ;;
+      2|w|web|W|Web) MODE="web"; break ;;
+      *) warn "Please choose 'simple' or 'web'." ;;
+    esac
+  done
+fi
+
+sanitize() {
+  sed 's|/|-|g; s/[^a-zA-Z0-9-]/-/g; s/--*/-/g; s/^-//; s/-$//' \
+    | tr '[:upper:]' '[:lower:]'
+}
+
+gitdir=$(git rev-parse --git-common-dir)
+case "$gitdir" in
+  /*) ;;
+  *) gitdir="$PWD/$gitdir" ;;
+esac
+GIT_COMMON_DIR=$(cd "$gitdir" && pwd)
+PROJECT_NAME_RAW="${PROJECT_NAME:-$(basename "$(dirname "$GIT_COMMON_DIR")")}"
+PROJECT_NAME=$(printf '%s' "$PROJECT_NAME_RAW" | sanitize)
+
 echo
-info "${BOLD}Installing container-wt template${NC}"
+info "${BOLD}Installing container-wt (${MODE})${NC}"
 info "Source: github.com/${REPO}@${BRANCH}"
-if [ "$SLIM" = true ]; then
-  info "Mode: ${BOLD}slim${NC} (no shared infrastructure)"
-fi
-echo
-
-# --- Handle existing files ---
-
-EXISTING_FILES=()
-for f in .worktree/docker-compose.yml .worktree/Dockerfile.base .worktree/init.sh; do
-  [ -f "$f" ] && EXISTING_FILES+=("$f")
-done
-
-if [ ${#EXISTING_FILES[@]} -gt 0 ]; then
-  warn "Existing container-wt files detected: ${EXISTING_FILES[*]}"
-  answer=$(ask "Overwrite (o) or backup and replace (b)? [b]:" "b")
-  case "$answer" in
-    o|O)
-      info "Will overwrite existing files..."
-      ;;
-    *)
-      backup_dir=".container-wt-backup.$(date +%Y%m%d%H%M%S)"
-      mkdir -p "$backup_dir"
-      for f in "${EXISTING_FILES[@]}"; do
-        mkdir -p "$backup_dir/$(dirname "$f")"
-        cp "$f" "$backup_dir/$f"
-      done
-      success "Backup created: ${backup_dir}/"
-      ;;
-  esac
-  echo
-fi
-
-# --- Download template ---
 
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
 
-info "Downloading template from GitHub..."
+info "Downloading template..."
 if ! curl -fsSL "https://github.com/${REPO}/archive/refs/heads/${BRANCH}.tar.gz" | tar xz -C "$TMPDIR"; then
   error "Failed to download template. Check your network connection."
   exit 1
 fi
-TEMPLATE_DIR="${TMPDIR}/container-wt-${BRANCH}/template"
 
-if [ ! -d "$TEMPLATE_DIR" ]; then
-  error "Unexpected archive structure. Expected directory: container-wt-${BRANCH}/template"
+TEMPLATE_DIR="${TMPDIR}/container-wt-${BRANCH}/template"
+COMMON_DIR="${TEMPLATE_DIR}/common"
+MODE_DIR="${TEMPLATE_DIR}/${MODE}"
+
+if [ ! -d "$COMMON_DIR" ] || [ ! -d "$MODE_DIR" ]; then
+  error "Unexpected archive structure. Missing common or ${MODE} template."
   exit 1
 fi
 
-# --- Install .worktree files ---
+MANAGED_FILES=(
+  ".container/Dockerfile.example"
+  ".container/.env.app.example"
+  ".container/docker-compose.yml"
+  ".container/init.sh"
+  ".container/hooks/on-create.sh"
+  ".container/hooks/on-delete.sh"
+  ".worktreeinclude"
+  ".dockerignore"
+)
 
-info "Installing .worktree/..."
-mkdir -p .worktree
-cp "$TEMPLATE_DIR/.worktree/Dockerfile.base" .worktree/
-cp "$TEMPLATE_DIR/.worktree/Dockerfile.local.example" .worktree/
-if [ "$SLIM" = true ]; then
-  cp "$TEMPLATE_DIR/.worktree/docker-compose.slim.yml" .worktree/docker-compose.yml
-else
-  cp "$TEMPLATE_DIR/.worktree/docker-compose.yml" .worktree/
-fi
-cp "$TEMPLATE_DIR/.worktree/docker-compose.local.example.yml" .worktree/
-cp "$TEMPLATE_DIR/.worktree/init.sh" .worktree/
-chmod +x .worktree/init.sh
-
-info "Installing .env.app.template..."
-cp "$TEMPLATE_DIR/.worktree/.env.app.template" .worktree/
-
-# --- Install root-level files ---
-
-if [ "$SLIM" = true ]; then
-  info "Skipping root docker-compose.yml (slim mode)."
-else
-  info "Installing docker-compose.yml (infra)..."
-  cp "$TEMPLATE_DIR/docker-compose.yml" .
-  info "Installing .worktree/switch-branch.sh..."
-  cp "$TEMPLATE_DIR/.worktree/switch-branch.sh" .worktree/
-  chmod +x .worktree/switch-branch.sh
+if [ "$MODE" = "web" ]; then
+  MANAGED_FILES+=(
+    ".container/route.sh"
+    "docker-compose.infra.yml"
+  )
 fi
 
-info "Installing .worktreeinclude..."
-cp "$TEMPLATE_DIR/.worktreeinclude" .
+EXISTING_MANAGED=()
+for f in "${MANAGED_FILES[@]}"; do
+  [ -f "$f" ] && EXISTING_MANAGED+=("$f")
+done
 
-info "Installing .dockerignore..."
-cp "$TEMPLATE_DIR/.dockerignore" .
+REPLACE_MANAGED="yes"
+if [ ${#EXISTING_MANAGED[@]} -gt 0 ]; then
+  warn "Existing managed container-wt files detected: ${EXISTING_MANAGED[*]}"
+  answer=$(ask_tty "Overwrite (o), backup and replace (b), or skip existing (s)? [b]:" "b")
+  case "$answer" in
+    o|O) REPLACE_MANAGED="yes" ;;
+    s|S) REPLACE_MANAGED="skip" ;;
+    *)
+      backup_dir=".container-wt-backup.$(date +%Y%m%d%H%M%S)"
+      mkdir -p "$backup_dir"
+      for f in "${EXISTING_MANAGED[@]}"; do
+        mkdir -p "$backup_dir/$(dirname "$f")"
+        cp "$f" "$backup_dir/$f"
+      done
+      success "Backup created: ${backup_dir}/"
+      REPLACE_MANAGED="yes"
+      ;;
+  esac
+fi
 
-# Install worktree hooks
-info "Installing .worktree/hooks/..."
-mkdir -p .worktree/hooks
-cp "$TEMPLATE_DIR/.worktree/hooks/on-create.sh" .worktree/hooks/
-cp "$TEMPLATE_DIR/.worktree/hooks/on-delete.sh" .worktree/hooks/
-chmod +x .worktree/hooks/on-create.sh
-chmod +x .worktree/hooks/on-delete.sh
+SKIPPED_FILES=()
 
-# --- Update .gitignore ---
+copy_managed_file() {
+  local src="$1"
+  local dest="$2"
+  if [ -f "$dest" ] && [ "$REPLACE_MANAGED" = "skip" ]; then
+    SKIPPED_FILES+=("$dest")
+    return
+  fi
+  mkdir -p "$(dirname "$dest")"
+  cp "$src" "$dest"
+}
+
+copy_managed_tree() {
+  local base="$1"
+  local file
+  while IFS= read -r file; do
+    rel="${file#$base/}"
+    copy_managed_file "$file" "$rel"
+  done < <(find "$base" -type f | sort)
+}
+
+copy_managed_tree "$COMMON_DIR"
+copy_managed_tree "$MODE_DIR"
+
+chmod +x .container/init.sh .container/hooks/on-create.sh .container/hooks/on-delete.sh
+if [ "$MODE" = "web" ]; then
+  chmod +x .container/route.sh
+fi
+
+USER_FILES=(
+  ".container/Dockerfile"
+  ".container/.env.app"
+)
+
+if [ "$MODE" = "web" ]; then
+  USER_FILES+=(".env")
+fi
+
+if [ ! -f ".container/Dockerfile" ]; then
+  cp ".container/Dockerfile.example" ".container/Dockerfile"
+else
+  SKIPPED_FILES+=(".container/Dockerfile")
+fi
+
+if [ ! -f ".container/.env.app" ]; then
+  cp ".container/.env.app.example" ".container/.env.app"
+else
+  SKIPPED_FILES+=(".container/.env.app")
+fi
+
+if [ "$MODE" = "web" ]; then
+  if [ ! -f ".env" ]; then
+    cat > .env <<EOF
+COMPOSE_FILE=docker-compose.infra.yml
+COMPOSE_PROFILES=infra
+PROJECT_NAME=${PROJECT_NAME}
+NETWORK_NAME=devnet-${PROJECT_NAME}
+TRAEFIK_HOST=127.0.0.1
+TRAEFIK_PORT=9876
+EOF
+  else
+    SKIPPED_FILES+=(".env")
+  fi
+fi
 
 GITIGNORE_ENTRIES=(
-  '# container-wt generated files'
-)
-if [ "$SLIM" = false ]; then
-  GITIGNORE_ENTRIES+=('.env' '.worktree/traefik/dynamic.yml')
-fi
-GITIGNORE_ENTRIES+=(
-  '.worktree/.env'
-  '.worktree/.env.app'
-  '.worktree/docker-compose.local.yml'
-  ''
-  '# Personal Dockerfile (gitignored)'
-  '.worktree/Dockerfile.local'
-  ''
-  '# Personal worktreeinclude (not tracked)'
+  '# container-wt'
+  '.container/.env'
+  '.container/.env.app'
+  '.container/Dockerfile'
+  '.container/traefik/dynamic.yml'
   '.worktreeinclude.local'
 )
 
 if [ -f ".gitignore" ]; then
-  # Check if container-wt section already exists
-  if ! grep -qF "# container-wt generated files" .gitignore 2>/dev/null; then
-    # Add a blank line separator, then all entries as a block
+  if ! grep -qF "# container-wt" .gitignore 2>/dev/null; then
     echo "" >> .gitignore
     printf '%s\n' "${GITIGNORE_ENTRIES[@]}" >> .gitignore
   else
-    # Section exists — add any missing non-comment, non-empty patterns
     for entry in "${GITIGNORE_ENTRIES[@]}"; do
       [[ -z "$entry" || "$entry" == \#* ]] && continue
-      if ! grep -qF "$entry" .gitignore 2>/dev/null; then
-        echo "$entry" >> .gitignore
-      fi
+      grep -qF "$entry" .gitignore 2>/dev/null || echo "$entry" >> .gitignore
     done
   fi
 else
   printf '%s\n' "${GITIGNORE_ENTRIES[@]}" > .gitignore
 fi
 
-success "Template files installed."
+info "Running .container/init.sh..."
+.container/init.sh
 
-# --- Optionally set up local environment files ---
-
-SETUP_LOCAL=false
+success "container-wt installed (${MODE})."
 echo
-answer=$(ask "Set up local environment files? (Dockerfile.local + docker-compose.local.yml) [y/N]:" "n")
-if [[ "$answer" =~ ^[Yy]$ ]]; then
-  SETUP_LOCAL=true
-
-  # Dockerfile.local
-  if [ -f ".worktree/Dockerfile.local" ]; then
-    ow=$(ask ".worktree/Dockerfile.local already exists. Overwrite? [y/N]:" "n")
-    if [[ "$ow" =~ ^[Yy]$ ]]; then
-      cp ".worktree/Dockerfile.local.example" ".worktree/Dockerfile.local"
-      success "Copied Dockerfile.local.example -> Dockerfile.local"
-    else
-      warn "Skipped .worktree/Dockerfile.local (already exists)"
-    fi
-  else
-    cp ".worktree/Dockerfile.local.example" ".worktree/Dockerfile.local"
-    success "Created .worktree/Dockerfile.local"
-  fi
-
-  # docker-compose.local.yml
-  if [ -f ".worktree/docker-compose.local.yml" ]; then
-    ow=$(ask ".worktree/docker-compose.local.yml already exists. Overwrite? [y/N]:" "n")
-    if [[ "$ow" =~ ^[Yy]$ ]]; then
-      cp ".worktree/docker-compose.local.example.yml" ".worktree/docker-compose.local.yml"
-      success "Copied docker-compose.local.example.yml -> docker-compose.local.yml"
-    else
-      warn "Skipped .worktree/docker-compose.local.yml (already exists)"
-    fi
-  else
-    cp ".worktree/docker-compose.local.example.yml" ".worktree/docker-compose.local.yml"
-    success "Created .worktree/docker-compose.local.yml"
-  fi
-fi
-
-# --- Run init.sh to generate .env files ---
-
-info "Running init.sh to generate .env files..."
-.worktree/init.sh
-
-# --- Done ---
-
-echo
-success "container-wt installed successfully!"
-echo
-info "${BOLD}Next steps:${NC}"
-info "  1. Edit .worktree/Dockerfile.base       -- add team + project deps (runtimes, tools, libs)"
-if [ "$SLIM" = true ]; then
-  info "  2. Edit .worktree/.env.app.template            -- add per-worktree env vars"
-  info "  3. Start the app container:"
-  info "       cd .worktree && docker compose up -d --build"
-  info "  4. Enter the container:"
-  info "       cd .worktree && docker compose exec app zsh"
+if [ "$MODE" = "simple" ]; then
+  info "${BOLD}Next commands:${NC}"
+  info "  cd .container"
+  info "  docker compose up -d --build"
+  info "  docker compose exec app zsh"
 else
-  info "  2. Edit docker-compose.yml                   -- add infra (Postgres, Redis, etc.)"
-  info "  3. Edit .worktree/.env.app.template            -- add per-worktree env vars"
-  info "  4. Start shared infrastructure:"
-  info "       docker compose up -d"
-  info "  5. Start the app container:"
-  info "       cd .worktree && docker compose up -d --build"
-  info "  6. Activate Traefik routing to this worktree:"
-  info "       .worktree/switch-branch.sh <worktree-name>          # defaults to port 3000"
-  info "       .worktree/switch-branch.sh <worktree-name> <port>   # custom port"
-  info "  7. Enter the container:"
-  info "       cd .worktree && docker compose exec app zsh"
+  info "${BOLD}Next commands:${NC}"
+  info "  docker compose up -d"
+  info "  cd .container"
+  info "  docker compose up -d --build"
+  info "  cd .. && .container/route.sh"
+  info "  open http://localhost:9876"
 fi
-echo
-if [ "$SETUP_LOCAL" = true ]; then
-  info "For personal Dockerfile customization:"
-  info "  1. Edit .worktree/Dockerfile.local        -- add your personal tools"
-  info "  2. Add to .worktreeinclude.local: .worktree/Dockerfile.local"
-else
-  info "For personal Dockerfile customization:"
-  info "  1. Copy .worktree/Dockerfile.local.example to .worktree/Dockerfile.local"
-  info "  2. Copy .worktree/docker-compose.local.example.yml to .worktree/docker-compose.local.yml"
-  info "  3. Edit .worktree/Dockerfile.local        -- add your personal tools"
-  info "  4. Add to .worktreeinclude.local: .worktree/Dockerfile.local"
+
+skipped_text="None"
+if [ ${#SKIPPED_FILES[@]} -gt 0 ]; then
+  skipped_text=$(printf -- '- %s\n' "${SKIPPED_FILES[@]}")
 fi
-echo
-info "If you are using worktrunk, configure worktree hooks (recommended):"
-info "  wt config create --project"
-info "  # Then add to .config/wt.toml:"
-info "  pre-start = \".worktree/hooks/on-create.sh\""
-info "  pre-remove = \".worktree/hooks/on-delete.sh\""
-echo
 
-# --- AI setup prompt ---
-
+echo
 echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${BOLD}  Paste this prompt into your AI assistant to finish the project setup:${NC}"
+echo -e "${BOLD}  Paste this prompt into your coding assistant to finish setup:${NC}"
 echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo
-if [ "$SLIM" = true ]; then
-cat <<'PROMPT'
-I've just set up a Docker-based development environment in this project.
-Help me finish configuring it for this specific project.
 
-Work through the following steps one at a time, asking me to confirm or provide
-input before making any file changes. Never do multiple steps at once.
+if [ "$MODE" = "simple" ]; then
+cat <<PROMPT
+I've installed container-wt simple mode in this project.
 
-Step 1 — Tech stack detection
-Read the project files (package.json, go.mod, Pipfile, Gemfile, Cargo.toml,
-pom.xml, etc.) and tell me what language runtime(s) and package manager(s) you
-detected. Ask me to confirm or correct before proceeding.
+Simple mode is CLI/container-shell first. It does not expose ports by default.
 
-Step 2 — App port
-Based on the detected stack and any config files or README, what port does the
-dev server run on? Tell me your best guess and ask me to confirm or override.
-You will update the port mapping in .worktree/docker-compose.yml to this port.
+Files skipped or intentionally left unmodified during install:
+${skipped_text}
 
-Step 3 — Runtime environment variables
-Based on any .env.example or README in the project, show me the environment
-variables you plan to add to .worktree/.env.app.template and ask me to confirm
-or edit them before writing.
+Work through these steps one at a time. Inspect first, propose changes, and ask
+before editing. Do not overwrite existing user-owned files.
 
-Step 4 — Personal Dockerfile customization
-Ask me to paste the contents of any previous personal Dockerfile I've used on
-other projects (editors, AI CLIs, shell configs, personal tools, etc.).
-If I provide one, adapt it for the base image used in this project's
-Dockerfile.base and write it to .worktree/Dockerfile.local.
-If I have nothing to paste, tell me that .worktree/Dockerfile.local is where I
-can add personal tooling on top of the team image, and give me two or three
-example snippets relevant to the detected stack as a starting point.
+1. Detect the project stack and package manager.
+2. Review .container/Dockerfile and configure only the runtime/tools this project needs.
+3. Review existing env examples/docs and propose .container/.env.app changes.
+4. If this project needs ports even in simple mode, propose the minimal
+   .container/docker-compose.yml change. Otherwise leave ports absent.
+5. Run or propose the exact commands to start and enter the container:
+   cd .container
+   docker compose up -d --build
+   docker compose exec app zsh
 
-After all steps are confirmed and applied, summarize every file changed and
-what was done.
+Summarize every file changed and why.
 PROMPT
 else
-cat <<'PROMPT'
-I've just set up a Docker-based development environment in this project.
-Help me finish configuring it for this specific project.
+cat <<PROMPT
+I've installed container-wt web mode in this project.
 
-Work through the following steps one at a time, asking me to confirm or provide
-input before making any file changes. Never do multiple steps at once.
+Web mode uses Traefik file-provider routing. The stable route is:
+http://localhost:9876
 
-Step 1 — Tech stack detection
-Read the project files (package.json, go.mod, Pipfile, Gemfile, Cargo.toml,
-pom.xml, etc.) and tell me what language runtime(s) and package manager(s) you
-detected. Ask me to confirm or correct before proceeding.
+Files skipped or intentionally left unmodified during install:
+${skipped_text}
 
-Step 2 — App port
-Based on the detected stack and any config files or README, what port does the
-dev server run on? Tell me your best guess and ask me to confirm or override.
-Note this port — the user will pass it to .worktree/switch-branch.sh to activate
-Traefik routing: .worktree/switch-branch.sh <worktree-name> <port>
+Work through these steps one at a time. Inspect first, propose changes, and ask
+before editing. Do not overwrite existing user-owned files.
 
-Step 3 — Infrastructure services
-Ask me which backing services this project needs (e.g. Postgres, Redis, MySQL,
-S3-compatible storage). Uncomment and configure the relevant services in
-docker-compose.yml only for what I confirm.
+1. Detect the project stack and package manager.
+2. Review .container/Dockerfile and configure only the runtime/tools this project needs.
+3. Identify the app's internal dev-server port and update APP_PORT in .container/.env if needed.
+4. Inspect existing root Compose files and root .env.
+5. If root .env exists, propose a minimal change so COMPOSE_FILE includes
+   docker-compose.infra.yml without removing existing compose files and without
+   referencing missing files. Ensure COMPOSE_PROFILES enables infra where intended.
+6. Configure shared services in docker-compose.infra.yml only if I confirm they are needed.
+7. Review existing env examples/docs and propose .container/.env.app changes.
+8. Verify the workflow:
+   docker compose up -d
+   cd .container
+   docker compose up -d --build
+   cd .. && .container/route.sh
+   open http://localhost:9876
 
-Step 4 — Runtime environment variables
-Based on the services confirmed in Step 3 and any .env.example or README in the
-project, show me the environment variables you plan to add to
-.worktree/.env.app.template and ask me to confirm or edit them before writing.
-
-Step 5 — Personal Dockerfile customization
-Ask me to paste the contents of any previous personal Dockerfile I've used on
-other projects (editors, AI CLIs, shell configs, personal tools, etc.).
-If I provide one, adapt it for the base image used in this project's
-Dockerfile.base and write it to .worktree/Dockerfile.local.
-If I have nothing to paste, tell me that .worktree/Dockerfile.local is where I
-can add personal tooling on top of the team image, and give me two or three
-example snippets relevant to the detected stack as a starting point.
-
-After all steps are confirmed and applied, summarize every file changed and
-what was done.
+Summarize every file changed and why.
 PROMPT
 fi
+
 echo
 echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo

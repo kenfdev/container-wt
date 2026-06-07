@@ -1,0 +1,54 @@
+name: ${PROJECT_NAME:-myapp}-infra
+
+services:
+  traefik:
+    profiles:
+      - infra
+    image: traefik:v3
+    container_name: traefik-${PROJECT_NAME:-myapp}
+    command:
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
+      - --entrypoints.web.address=:80
+    ports:
+      - "${TRAEFIK_HOST:-127.0.0.1}:${TRAEFIK_PORT:-9876}:80"
+    volumes:
+      - ./.container/traefik:/etc/traefik/dynamic:ro
+    networks:
+      - devnet
+    restart: unless-stopped
+
+  # Add project-specific shared services when needed.
+  #
+  # postgres:
+  #   profiles:
+  #     - infra
+  #   image: postgres:16
+  #   container_name: postgres-${PROJECT_NAME:-myapp}
+  #   environment:
+  #     POSTGRES_USER: dev
+  #     POSTGRES_PASSWORD: dev
+  #     POSTGRES_DB: ${PROJECT_NAME:-myapp}
+  #   volumes:
+  #     - pgdata:/var/lib/postgresql/data
+  #   networks:
+  #     - devnet
+  #   restart: unless-stopped
+  #
+  # redis:
+  #   profiles:
+  #     - infra
+  #   image: redis:7-alpine
+  #   container_name: redis-${PROJECT_NAME:-myapp}
+  #   networks:
+  #     - devnet
+  #   restart: unless-stopped
+
+# volumes:
+#   pgdata:
+#     name: ${PROJECT_NAME:-myapp}-pgdata
+
+networks:
+  devnet:
+    external: true
+    name: ${NETWORK_NAME:-devnet-myapp}

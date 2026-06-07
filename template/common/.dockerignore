@@ -1,0 +1,7 @@
+# Ignore everything by default. The development Dockerfile should install
+# dependencies from package manifests or commands, not COPY the whole project.
+*
+
+# Allow container template files used by the build.
+!.container/
+!.container/**

@@ -1,0 +1,30 @@
+name: ${PROJECT_NAME}-${WORKTREE_NAME}
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: .container/Dockerfile
+    container_name: app-${PROJECT_NAME}-${WORKTREE_NAME}
+    tty: true
+    stdin_open: true
+    working_dir: /workspaces/${WORKTREE_NAME}
+    env_file:
+      - .env.app
+    environment:
+      PROJECT_NAME: ${PROJECT_NAME}
+      WORKTREE_NAME: ${WORKTREE_NAME}
+      BRANCH_NAME: ${BRANCH_NAME}
+      APP_PORT: ${APP_PORT}
+    volumes:
+      - ${LOCAL_WORKSPACE_FOLDER}:/workspaces/${WORKTREE_NAME}:cached
+      # Git worktree .git files contain absolute host paths. Mount the common
+      # git directory at the same path so git works inside the container.
+      - ${GIT_COMMON_DIR}:${GIT_COMMON_DIR}:cached
+    networks:
+      - devnet
+
+networks:
+  devnet:
+    external: true
+    name: ${NETWORK_NAME}

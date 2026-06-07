@@ -1,346 +1,243 @@
-# container-wt
+# container-wt Specification
 
-A thin, opinionated template for seamless Docker + git worktree workflows. No devcontainer CLI or VS Code required. Worktree management is delegated to external tools (e.g., [git-wt](https://github.com/k1LoW/git-wt), [wtp](https://github.com/satococoa/wtp), or raw `git worktree`). This template focuses only on what those tools can't do: making containers work correctly with worktrees.
+## Purpose
 
-## Problem
+`container-wt` installs a small Docker Compose development environment that works correctly from git worktrees.
 
-Working with containers and git worktrees simultaneously is painful:
+It is intentionally template-based. Installed projects should remain understandable as plain Docker Compose and shell scripts.
 
-1. **Git context breaks inside containers.** A git worktree's `.git` is a file (not a directory) containing an absolute host path (e.g. `gitdir: /Users/you/repo/.git/worktrees/feature-x`). When the worktree is mounted into a container at a different path (e.g. `/workspaces/repo-feature-x`), this host path doesn't resolve. All git operations (`log`, `blame`, `status`) fail inside the container. Note: this problem is specific to worktrees — regular repos have a `.git` directory that gets mounted alongside the project and works fine.
+## Modes
 
-2. **Port conflicts.** Each container maps ports to the host (e.g. `3000:3000`). Running multiple worktree containers simultaneously causes port binding conflicts.
+Install mode is selected interactively by default:
 
-3. **No shared infrastructure.** Each container typically spins up its own database, cache, etc. There's no built-in way to share these across worktrees or isolate data per worktree within a shared service.
+- `simple`: CLI/container-shell first. No ports, no Traefik.
+- `web`: Traefik file-provider routing to one active worktree app container.
 
-4. **Gitignored files don't propagate.** When creating a worktree, git only checks out tracked files. Gitignored files (`.env`, `docker-compose.local.yml`, IDE configs) must be manually copied.
+Automation flags:
 
-## Solution Overview
-
-**container-wt** is a template-only approach that solves these problems using plain Docker Compose, Dockerfiles, and shell scripts:
-
-- **Git fix:** Mount the git common directory at the same absolute host path inside the container so the `.git` file's host path references resolve directly. No symlink or file mutation needed.
-- **No port conflicts:** A per-project Traefik reverse proxy routes by subdomain (`feature-x.myapp.localhost`, using the branch name). No host port mapping needed per worktree. Traefik port is configurable.
-- **Shared infrastructure:** Infrastructure services (database, cache, proxy) run from a standalone `docker-compose.yml` at the project root — started with `docker compose up -d` on the host. Per-worktree app containers join a shared Docker network.
-- **Gitignored file propagation:** `.worktreeinclude` + `.worktreeinclude.local` define glob patterns for files to copy to new worktrees. Copying is handled by worktree tool hooks (e.g., `git-wt`'s `wt.hook`).
-- **Per-worktree env vars:** A `.worktree/.env.app.template` (tracked in git) with `${VARIABLE}` placeholders is expanded by `init.sh` into `.worktree/.env.app` (gitignored) per worktree.
-- **Dockerfile layering:** `Dockerfile.base` (team-shared, includes project-specific deps) + optional personal `.worktree/Dockerfile.local` for individual customization. `Dockerfile.local` uses `ARG BASE_IMAGE` / `FROM ${BASE_IMAGE}` with `depends_on` ensuring the base is always built first.
-- **Lifecycle hooks:** `.worktree/hooks/on-create.sh` and `.worktree/hooks/on-delete.sh` provide extension points for worktree tool hooks (file copying, container cleanup, DB teardown).
-
-## Target User
-
-Solo developer on macOS or Linux managing multiple feature branches simultaneously, including parallel AI coding agents (one agent per worktree). The primary workflows are:
-
-1. **Parallel development:** Work on multiple features at the same time, each in its own container (human or AI agent).
-2. **PR review:** Quickly spin up a colleague's branch, test it in a full environment, tear it down.
-
-## Architecture
-
-```
-                          Host Machine
-  ┌──────────────────────────────────────────────────┐
-  │                                                  │
-  │  myapp/  (main worktree)                         │
-  │    .git/                                         │
-  │    .worktree/                                │
-  │      docker-compose.yml   (app — per worktree)   │
-  │      Dockerfile.base                             │
-  │      init.sh                                     │
-  │    docker-compose.yml     (infra — shared)       │
-  │    src/                                          │
-  │                                                  │
-  │  feature-x/  (worktree)                            │
-  │    .git  (file → myapp/.git/worktrees/feature-x) │
-  │    .worktree/  (tracked in git)              │
-  │    src/                                          │
-  │                                                  │
-  └──────────────────────────────────────────────────┘
-
-  Host: docker compose up -d (from myapp/)
-  ┌──────────────────────────────────────────────────┐
-  │  ┌─────────┐  ┌──────────┐  ┌────────┐          │
-  │  │ Traefik │  │ Postgres │  │ Redis  │  ...      │
-  │  │ :80     │  │ :5432    │  │ :6379  │           │
-  │  └────┬────┘  └──────────┘  └────────┘          │
-  │       │           Shared Infrastructure          │
-  │       │     (started independently on host)      │
-  └───────┼──────────────────────────────────────────┘
-          │
-          │  Docker Network: devnet-myapp
-  ┌───────┼──────────────────────────────────────────┐
-  │  ┌────┴──────────────┬──────────────────┐       │
-  │  │                   │                  │        │
-  │  ▼                   ▼                  ▼        │
-  │ ┌──────────┐  ┌──────────────┐  ┌──────────┐   │
-  │ │app-myapp-│  │app-myapp-    │  │app-myapp-│   │
-  │ │  myapp   │  │  feature-x   │  │  pr-123  │   │
-  │ │ :3000    │  │ :3000        │  │ :3000    │   │
-  │ └──────────┘  └──────────────┘  └──────────┘   │
-  │  Per-worktree app containers                     │
-  │  (no host port mapping — Traefik routes traffic) │
-  └──────────────────────────────────────────────────┘
-
-  Browser (routes by branch name):
-    main.myapp.localhost            → app-myapp-myapp:3000
-    feature-x.myapp.localhost       → app-myapp-feature-x:3000
-    pr-123.myapp.localhost          → app-myapp-pr-123:3000
-
-  Traefik Dashboard:
-    traefik.myapp.localhost         → Traefik dashboard (debug routing)
+```bash
+install.sh --simple
+install.sh --web
 ```
 
-### Key Design Decisions
+No compatibility alias for `--slim` is provided.
 
-| Decision | Choice | Rationale |
-|---|---|---|
-| Git fix | Same-path volume mount (no file mutation) | Mounts the git common directory at the same absolute host path inside the container. The `.git` file's host path references resolve directly. No symlink or post-start script needed. |
-| Directory layout | Sibling directories | Most common git worktree pattern. Main worktree is a natural home for shared infra. |
-| Container runtime | Plain Docker Compose + Dockerfile | No devcontainer CLI, VS Code, or features required. Works from any terminal. |
-| File organization | `.worktree/` directory | All container-wt files (Dockerfiles, app compose, init.sh, personal Dockerfile, env template, app `.env`) live inside `.worktree/` to avoid polluting the project root. Only `docker-compose.yml` (infra), a minimal `.env`, and `.worktreeinclude` remain at root. |
-| Dockerfile layering | `Dockerfile.base` + optional personal | Single team-shared Dockerfile (OS + project deps), with personal customization via `Dockerfile.local`. The personal Dockerfile uses `ARG BASE_IMAGE` / `FROM ${BASE_IMAGE}` with `depends_on` for build ordering. |
-| Worktree management | External tools (git-wt, wtp, raw git worktree) | Template does NOT wrap `git worktree`. Users choose their preferred tool. Template provides hook scripts that any tool can call. |
-| Port conflict solution | Traefik with subdomain routing | Single entry point, configurable port (default 80). Auto-discovers containers via Docker labels. Zero-config per worktree. |
-| Routing pattern | Always `{branch}.{project}.localhost` | Consistent pattern using the git branch name. Main worktree gets `main.myapp.localhost`. |
-| Container naming | Always `app-{project}-{worktree}` | Consistent pattern, no special-casing. |
-| Docker Compose UX | Directory-based separation | Infra: `docker compose up` from project root. App: `cd .worktree && docker compose up`. Each directory has its own `.env` file auto-loaded by Docker Compose. |
-| Network isolation | Per-project Docker network (`devnet-{project}`) | Prevents container name collisions and unintended cross-project access. |
-| Compose project naming | Infra: `{PROJECT_NAME}-infra`, App: `{PROJECT_NAME}-{BRANCH_NAME}` | Each compose file sets its own project name via the top-level `name:` attribute. `COMPOSE_PROJECT_NAME` is intentionally NOT set in `.env` to prevent it from leaking across compose files. |
-| Infra lifecycle | Standalone `docker-compose.yml` at project root | Infrastructure runs independently on the host via `docker compose up -d` from project root. No devcontainer required. |
-| Per-worktree env vars | `.worktree/.env.app.template` expanded by `init.sh` | Tracked template with `${VARIABLE}` placeholders. `init.sh` renders it into `.worktree/.env.app` (gitignored) per worktree via `envsubst`. |
-| Personal Dockerfile | `.worktree/Dockerfile.local` with `docker-compose.local.yml` override | Each developer can customize their image without touching shared files. Base image inheritance guaranteed via `depends_on` and `BASE_IMAGE` build arg. |
-| .env location | Split: root + `.worktree/` | Root `.env` has minimal infra vars (`PROJECT_NAME`, `NETWORK_NAME`). `.worktree/.env` has app vars (`WORKTREE_NAME`, `BRANCH_NAME`, `LOCAL_WORKSPACE_FOLDER`, etc.) plus `COMPOSE_FILE` for local overrides. Each is auto-loaded by Docker Compose from its respective directory. |
-| Worktree hooks | `.worktree/hooks/on-create.sh` and `on-delete.sh` | Prescribed hook scripts at a well-known location. Users wire them into their worktree tool of choice. `on-create.sh` also runs `init.sh` to generate .env files automatically. |
-| Worktreeinclude | `.worktreeinclude` + `.worktreeinclude.local` at repo root | Glob patterns for gitignored files to copy from main worktree to new worktrees. |
-| Local compose overrides | `.worktree/docker-compose.local.yml` (gitignored) | Personal Docker Compose overrides. Example template tracked as `.worktree/docker-compose.local.example.yml`. |
-| Platform | macOS + Linux | Template works on both Docker Desktop (macOS) and native Docker (Linux). |
+## Template Layout
 
-## Prerequisites
+Source templates are organized as:
 
-1. **Docker Desktop** (macOS) or **Docker Engine** (Linux) must be running.
-2. **envsubst** must be available (`brew install gettext` on macOS).
-3. **Install a worktree management tool (recommended).** The template works with raw `git worktree` commands, but tools like [git-wt](https://github.com/k1LoW/git-wt) provide a better experience with hook support.
-
-## Directory Structure
-
-```
-myapp/                                   # main worktree
-  .git/                                  # git database
-  .worktree/                         # container-wt files
-    Dockerfile.base                      # team-shared image (OS + project deps)
-    docker-compose.yml                   # per-worktree app service (base + app)
-    docker-compose.local.yml             # personal overrides (gitignored, auto-stubbed)
-    docker-compose.local.example.yml     # template for personal overrides (tracked)
-    init.sh                              # host-side: resolves paths → .env, expands .env.app.template
-    .env.app.template                    # per-worktree env var template (tracked in git)
-    Dockerfile.local.example             # example personal Dockerfile
-    .env                                 # generated by init.sh, compose vars (gitignored)
-    .env.app                             # generated by init.sh from template (gitignored)
-  docker-compose.yml                     # shared infrastructure (Traefik, DB, cache)
-  .env                                   # generated by init.sh, minimal infra vars (gitignored)
-  .worktree/
-    hooks/
-      on-create.sh                       # host-side: runs after worktree creation
-      on-delete.sh                       # host-side: cleanup hook
-  .worktreeinclude                       # glob patterns for files to copy to new worktrees (tracked)
-  .worktreeinclude.local                 # personal patterns (gitignored)
-  src/
-  ...
-
-feature-x/                               # git worktree (sibling directory)
-  .git                                   # file → ../myapp/.git/worktrees/feature-x
-  .worktree/                             # same files (tracked in git)
-  src/
-  ...
+```text
+template/
+  common/
+  simple/
+  web/
 ```
 
-## Configuration Files
+The installer copies `common`, then copies the selected mode.
 
-### `docker-compose.yml` (project root)
+Mode-specific files intentionally duplicate small init logic. Do not add a stored mode file or a shared mode-aware init abstraction.
 
-Shared infrastructure services. Started independently on the host with `docker compose up -d` from the project root. Completely decoupled from app containers.
+## Installed Common Files
 
-Uses `name: ${PROJECT_NAME:-myapp}-infra` to prevent Compose project name collision with app compose.
+```text
+.container/
+  Dockerfile.example
+  Dockerfile
+  .env
+  .env.app.example
+  .env.app
+  hooks/
+    on-create.sh
+    on-delete.sh
+.worktreeinclude
+.worktreeinclude.local
+.dockerignore
+```
 
-### `.worktree/docker-compose.yml`
+Generated/gitignored:
 
-Per-worktree app services:
+```text
+.container/.env
+.container/.env.app
+.container/Dockerfile
+.container/traefik/dynamic.yml
+.worktreeinclude.local
+```
 
-- **`base` service:** Builds `Dockerfile.base`, tags as `${PROJECT_NAME}-dev-base:local`
-- **`app` service:** By default has no `build:` block — runs `image: ${PROJECT_NAME}-dev-base:local` directly (built by the `base` service via `depends_on`). When the user opts into a personal Dockerfile, `docker-compose.local.yml` adds a `build:` block targeting `Dockerfile.local` with `args: BASE_IMAGE` so the personal layer inherits from the team base.
+## Dockerfile Model
 
-Personal Dockerfiles use `ARG BASE_IMAGE` / `FROM ${BASE_IMAGE}` — the image name is passed as a build arg by `docker-compose.local.yml`.
+Tracked:
 
-### `.worktree/docker-compose.local.yml` and `.worktree/docker-compose.local.example.yml`
+```text
+.container/Dockerfile.example
+```
 
-Personal Docker Compose overrides (gitignored). Primary use case: override the app service's build to use a personal Dockerfile:
+Local:
+
+```text
+.container/Dockerfile
+```
+
+`init.sh` copies the example to the local Dockerfile only if missing. Compose builds `.container/Dockerfile`.
+
+There is no base/local layering, no `BASE_IMAGE`, and no default local Compose override.
+
+## Environment Model
+
+`.container/.env` is generated per worktree and used by Docker Compose.
+
+It always includes:
+
+```env
+COMPOSE_FILE=docker-compose.yml
+PROJECT_NAME=...
+WORKTREE_NAME=...
+BRANCH_NAME=...
+GIT_COMMON_DIR=...
+LOCAL_WORKSPACE_FOLDER=...
+```
+
+Web mode also includes:
+
+```env
+NETWORK_NAME=...
+APP_PORT=3000
+```
+
+`.container/.env.app.example` is tracked. `.container/.env.app` is copied from it if missing and then user-owned.
+
+No `envsubst` is used.
+
+## Simple Mode
+
+Installed mode-specific files:
+
+```text
+.container/docker-compose.yml
+.container/init.sh
+```
+
+Simple mode:
+
+- uses Compose's default network
+- maps no ports by default
+- does not create root `.env`
+- does not include `APP_PORT`
+
+## Web Mode
+
+Installed mode-specific files:
+
+```text
+.container/docker-compose.yml
+.container/init.sh
+.container/route.sh
+docker-compose.infra.yml
+```
+
+Web mode:
+
+- creates a shared external Docker network if missing
+- creates `.container/traefik/`
+- may create root `.env` only if missing
+- routes `http://localhost:9876` to one active worktree app container
+
+Root `.env` default when missing:
+
+```env
+COMPOSE_FILE=docker-compose.infra.yml
+COMPOSE_PROFILES=infra
+PROJECT_NAME=myapp
+NETWORK_NAME=devnet-myapp
+TRAEFIK_HOST=127.0.0.1
+TRAEFIK_PORT=9876
+```
+
+Existing root `.env` is never overwritten. The installer prompt tells the user/LLM to merge `COMPOSE_FILE` safely.
+
+## Web Infra Compose
+
+Infra file:
+
+```text
+docker-compose.infra.yml
+```
+
+It must not be merged into `docker-compose.override.yml`.
+
+Active infra services use:
 
 ```yaml
-services:
-  app:
-    image: "${PROJECT_NAME}-dev-local:${WORKTREE_NAME}"
-    build:
-      context: ..
-      dockerfile: .worktree/Dockerfile.local
-      args:
-        BASE_IMAGE: "${PROJECT_NAME}-dev-base:local"
+profiles:
+  - infra
 ```
 
-The override sets a distinct `image:` tag so the personal build does not overwrite the team base image (which it inherits from via `BASE_IMAGE`).
+Traefik:
 
-### `.worktree/init.sh`
+- binds `${TRAEFIK_HOST:-127.0.0.1}:${TRAEFIK_PORT:-9876}:80`
+- uses file provider only
+- does not mount the Docker socket
+- has no dashboard exposed by default
 
-Runs on the **host** (called by the installer on first setup, and by `on-create.sh` for new worktrees). Resolves git paths, detects project name, sanitizes worktree name, detects branch name (falls back to short SHA on detached HEAD), creates `.worktree/docker-compose.local.yml` stub if missing, expands the env var template, and writes two `.env` files: a minimal root `.env` (for infra compose) and `.worktree/.env` (for app compose with `COMPOSE_FILE` for local overrides). `COMPOSE_PROJECT_NAME` is intentionally NOT written — each compose file sets its own project name via the top-level `name:` attribute.
+## Routing
 
-### `.worktree/.env.app.template`
+`route.sh` is web-only.
 
-Per-worktree environment variable template. Tracked in git. Uses `${VARIABLE}` placeholders that `init.sh` expands via `envsubst`.
-
-### `.worktreeinclude` and `.worktreeinclude.local`
-
-Glob patterns (one per line) for gitignored files that should be copied from the main worktree to new worktrees.
-
-### Dockerfile layering
-
-```
-.worktree/Dockerfile.base     — Team-shared: OS packages, non-root user,
-                                 language runtimes, build tools, client libs
-      ↓ (FROM base via BASE_IMAGE arg, optional)
-.worktree/Dockerfile.local    — Personal: editors, AI CLIs, shell configs
-```
-
-`Dockerfile.base` is a regular Dockerfile (no `BASE_IMAGE` arg — it picks an upstream image directly, e.g. `debian:trixie-slim`). `Dockerfile.local` uses `ARG BASE_IMAGE` / `FROM ${BASE_IMAGE}` so it inherits from the team base image; the image name is passed as a build arg by `docker-compose.local.yml`.
-
-## Worktree Hooks
-
-The template provides hook scripts in `.worktree/hooks/` that handle worktree lifecycle events. These scripts are **not called automatically** — users wire them into their worktree management tool of choice.
-
-### `.worktree/hooks/on-create.sh`
-
-Runs on the **host** after a new worktree is created. Copies gitignored files listed in `.worktreeinclude`, then runs `.worktree/init.sh` to generate `.env` files so the worktree is immediately ready.
-
-### `.worktree/hooks/on-delete.sh`
-
-Runs on the **host** before a worktree is removed. Stops the container and runs project-specific cleanup.
-
-### Wiring Hooks to Worktree Tools
-
-#### git-wt
+Usage:
 
 ```bash
-git config --add wt.hook ".worktree/hooks/on-create.sh"
-git config --add wt.deletehook ".worktree/hooks/on-delete.sh"
+.container/route.sh
+.container/route.sh <worktree-name>
+.container/route.sh <worktree-name> <app-port>
 ```
 
-#### Raw `git worktree`
+No argument routes the current worktree. Explicit arguments use `WORKTREE_NAME`, not branch name.
 
-```bash
-# Create
-git worktree add ../myapp-feature-x -b feature-x
-cd ../myapp-feature-x && .worktree/hooks/on-create.sh
+`route.sh`:
 
-# Delete
-cd ../myapp-feature-x && .worktree/hooks/on-delete.sh
-cd ../myapp && git worktree remove ../myapp-feature-x
+- requires the target app container to be running
+- does not start or build containers
+- resolves the main repo via `git rev-parse --git-common-dir`
+- writes `${MAIN_REPO_DIR}/.container/traefik/dynamic.yml`
+- generates a catch-all `PathPrefix(`/`)` route
+
+## Naming
+
+`PROJECT_NAME` defaults to the main repo directory, derived from the git common directory.
+
+Names are sanitized with hyphens:
+
+```text
+feature/login -> feature-login
+my_app -> my-app
 ```
 
-## How the Git Fix Works
+## Hooks
 
-### The Problem
+Hooks are installed but not auto-wired.
 
-When you create a git worktree, git writes a `.git` **file** (not directory) in the worktree with an absolute host path:
+`on-create.sh`:
 
-```
-gitdir: /Users/you/projects/myapp/.git/worktrees/feature-x
-```
+- copies files from `.worktreeinclude`
+- copies files from `.worktreeinclude.local`
+- runs `.container/init.sh`
 
-When mounted into a container, this host path doesn't exist. All git commands fail.
+`on-delete.sh`:
 
-### The Solution (Same-Path Volume Mount)
+- loads `.container/.env`
+- removes `app-${PROJECT_NAME}-${WORKTREE_NAME}`
+- runs `git worktree prune`
+- does not modify web routing
 
-The template mounts the git common directory at the same absolute host path inside the container:
+## Installer Safety
 
-```
-Host: /Users/you/projects/myapp/.git/  →  Container: /Users/you/projects/myapp/.git/
-```
+Managed template files can be overwritten, backed up and replaced, or skipped.
 
-The `.git` file is **never modified**. No symlink or post-start script needed.
+User-owned files are never overwritten:
 
-## Workflows
+- `.container/Dockerfile`
+- `.container/.env.app`
+- root `.env`
+- existing project Compose files
 
-### Initial Setup
-
-```bash
-git clone https://github.com/you/your-repo.git myapp
-cd myapp
-
-# Install the template (runs init.sh automatically)
-curl -fsSL https://raw.githubusercontent.com/kenfdev/container-wt/main/install.sh | bash
-
-# Configure worktree hooks (recommended)
-git config --add wt.hook ".worktree/hooks/on-create.sh"
-git config --add wt.deletehook ".worktree/hooks/on-delete.sh"
-
-# Start infrastructure
-docker compose up -d
-
-# Start the app container
-cd .worktree && docker compose up -d --build
-
-# Enter the container
-docker compose exec app zsh
-```
-
-### Create a Feature Worktree
-
-```bash
-cd myapp
-git wt feature-x           # or: git worktree add ../feature-x -b feature-x
-cd ../feature-x/.worktree
-docker compose up -d --build
-# Browser: http://feature-x.myapp.localhost
-```
-
-### PR Review Flow
-
-```bash
-cd myapp
-git fetch origin
-git wt feature-branch
-cd ../feature-branch/.worktree
-docker compose up -d --build
-# Browser: http://feature-branch.myapp.localhost
-
-# Cleanup
-docker compose down
-cd ../myapp
-git wt -d feature-branch
-```
-
-### Cleanup
-
-```bash
-cd ../feature-x/.worktree
-docker compose down
-cd ..
-.worktree/hooks/on-delete.sh
-cd ../myapp
-git worktree remove ../feature-x
-```
-
-## Platform Considerations
-
-### macOS (Docker Desktop)
-
-- `*.localhost` resolves to `127.0.0.1` by default. Traefik subdomain routing works out of the box.
-- `extra_hosts: host-gateway` maps to `host.docker.internal`.
-- Performance: Use `:cached` volume mount flag for better file system performance.
-
-### Linux (Native Docker)
-
-- `*.localhost` resolution may require configuration. Use `/etc/hosts` or `dnsmasq`.
-- `extra_hosts: host-gateway` maps to the Docker bridge gateway IP (typically `172.17.0.1`).
-
-## Limitations
-
-- **Infrastructure must be started separately.** Run `docker compose up -d` from the project root before starting app containers.
-- **Name collision risk.** Branch name sanitization may cause collisions (e.g., `feature/login` and `feature-login` both become `feature-login`). Use distinct branch names.
-- **GitHub Codespaces not supported.** Different constraints (no Traefik, no sibling worktrees). Out of scope.
+Skipped/unmodified files are included in the final printed LLM setup prompt.

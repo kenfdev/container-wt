@@ -1,0 +1,6 @@
+# Files to copy from the main worktree when creating a new worktree.
+# One glob per line, relative to the repository root.
+#
+# Examples:
+# .env.local
+# .container/.env.app
