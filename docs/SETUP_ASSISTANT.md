@@ -10,8 +10,10 @@ Follow these rules strictly.
 2. Inspect the target project before proposing changes.
 3. Identify whether the installation mode is `simple` or `web`.
 4. Review the files skipped or intentionally left unmodified during installation.
-5. Propose a plan.
-6. Ask the user for approval before editing any file.
+5. Check whether the user pasted a personal Dockerfile, Docker Compose file, or Compose snippet.
+   - If they did not, ask once whether they want to paste one before you propose edits.
+6. Propose a plan.
+7. Ask the user for approval before editing any file.
 
 Do not edit first.
 
@@ -25,6 +27,7 @@ Do not edit first.
 - Do not rename `.worktreeinclude`.
 - Do not add default port mappings in simple mode unless the user confirms the project needs ports.
 - Preserve existing Compose behavior when editing `COMPOSE_FILE`.
+- Treat pasted personal Docker setup as source material to merge, not as a replacement for installed files.
 
 ## Files To Understand
 
@@ -51,6 +54,28 @@ docker-compose.infra.yml
 .container/traefik/dynamic.yml
 ```
 
+## Personal Docker Setup Merge Guidance
+
+The user may paste a personal Dockerfile, Docker Compose file, or Compose snippet.
+This content can include their preferred CLI tools, package managers, dotfiles, bind mounts,
+cache directories, environment variables, sidecar services, or local networking preferences.
+
+Use it as input when proposing project-specific changes:
+
+- Extract durable developer preferences, such as installed tools, shell setup, package caches,
+  mounts, and helper services.
+- Cross-check those preferences against the detected project stack.
+- Merge Dockerfile needs into `.container/Dockerfile`.
+- Merge app-container Compose needs into `.container/docker-compose.yml`.
+- In web mode, merge shared infra services into `docker-compose.infra.yml` only when they are
+  actually shared infrastructure and the user approves them.
+- Put app runtime environment values in `.container/.env.app` when appropriate.
+- Keep project-specific values from the pasted content only when they match the target project.
+- Do not copy stale service names, image names, container names, project names, port bindings,
+  volumes, or paths blindly.
+- Do not replace container-wt's generated `.container/.env`, routing, networks, or Compose file
+  structure unless the change is explicitly needed and approved.
+
 ## Simple Mode Procedure
 
 Simple mode is CLI/container-shell first.
@@ -61,21 +86,24 @@ When finalizing simple mode:
 
 1. Detect the project stack.
    - Check files like `package.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`, `requirements.txt`, `Gemfile`, `pom.xml`, `build.gradle`, `Makefile`, and README files.
-2. Propose `.container/Dockerfile` changes.
+2. Review any pasted personal Docker setup.
+   - Identify personal tools, mounts, env, and services that should be adapted to this project.
+   - Ignore entries that only made sense for another project.
+3. Propose `.container/Dockerfile` changes.
    - Add only runtime/tooling needed by this project.
    - Keep the file understandable.
-3. Review app runtime env needs.
+4. Review app runtime env needs.
    - Inspect `.env.example`, README docs, config files, and framework conventions.
    - Propose `.container/.env.app` changes only when needed.
-4. Decide whether ports are needed.
+5. Decide whether ports are needed.
    - If the project is truly CLI-only, keep ports absent.
    - If the user confirms a dev server is needed, propose a minimal `ports:` addition to `.container/docker-compose.yml`.
-5. After approval and edits, verify:
+6. After approval and edits, verify:
    ```bash
    cd .container
    docker compose config
    ```
-6. Provide start commands:
+7. Provide start commands:
    ```bash
    cd .container
    docker compose up -d --build
@@ -90,31 +118,34 @@ Web mode routes `http://localhost:9876` through Traefik to one active worktree a
 When finalizing web mode:
 
 1. Detect the project stack.
-2. Propose `.container/Dockerfile` changes for the project runtime.
-3. Identify the app's internal development port.
+2. Review any pasted personal Docker setup.
+   - Identify personal tools, mounts, env, and services that should be adapted to this project.
+   - Ignore entries that only made sense for another project.
+3. Propose `.container/Dockerfile` changes for the project runtime.
+4. Identify the app's internal development port.
    - Default is `APP_PORT=3000`.
    - If the app uses another port, propose updating `.container/.env`.
-4. Inspect root Compose files and root `.env`.
+5. Inspect root Compose files and root `.env`.
    - Check for `compose.yml`, `compose.yaml`, `docker-compose.yml`, `docker-compose.yaml`, `docker-compose.override.yml`, `docker-compose.override.yaml`, and `.env`.
-5. If root `.env` exists, propose a minimal safe patch.
+6. If root `.env` exists, propose a minimal safe patch.
    - Ensure `COMPOSE_FILE` includes `docker-compose.infra.yml`.
    - Preserve existing Compose files already in `COMPOSE_FILE`.
    - Do not reference missing Compose files.
    - Ensure `COMPOSE_PROFILES` enables `infra` where intended.
-6. If root `.env` does not exist, verify the generated one is appropriate.
-7. Configure shared services only if confirmed.
+7. If root `.env` does not exist, verify the generated one is appropriate.
+8. Configure shared services only if confirmed.
    - `docker-compose.infra.yml` should have only Traefik active by default.
    - Add or uncomment Postgres, Redis, or other services only after user approval.
-8. Review `.container/.env.app`.
+9. Review `.container/.env.app`.
    - Add runtime env values needed by the app.
    - Prefer shared service URLs when shared services are configured.
-9. Verify Compose configs:
+10. Verify Compose configs:
    ```bash
    docker compose config
    cd .container
    docker compose config
    ```
-10. Provide start and route commands:
+11. Provide start and route commands:
     ```bash
     docker compose up -d
     cd .container

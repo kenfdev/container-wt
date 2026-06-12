@@ -116,6 +116,7 @@ if [ ! -d "$COMMON_DIR" ] || [ ! -d "$MODE_DIR" ]; then
 fi
 
 MANAGED_FILES=(
+  ".container/.gitignore"
   ".container/Dockerfile.example"
   ".container/.env.app.example"
   ".container/docker-compose.yml"
@@ -290,13 +291,27 @@ Before doing anything, read both container-wt docs:
 Files skipped or intentionally left unmodified during install:
 ${skipped_text}
 
+Personal Docker setup to merge:
+If you have a personal Dockerfile, Docker Compose file, or Compose snippet with your
+usual tools, mounts, environment variables, or services, paste it below before sending
+this prompt. Treat it as source material to adapt to this project, not as a file to
+copy over the installed templates.
+
+Paste personal Dockerfile / Docker Compose content here, or write "None":
+
+--- END PERSONAL DOCKER SETUP ---
+
 Follow the Simple Mode section in SETUP_ASSISTANT.md.
 
 Key constraints:
 - Inspect the project first.
+- Ask me to paste personal Dockerfile or Docker Compose content if I left the
+  section above blank.
 - Propose a setup plan before editing.
 - Ask for approval before editing any file.
 - Do not overwrite skipped or user-owned files.
+- Merge useful personal tools, mounts, env, and services into the project-specific
+  container-wt files without blindly replacing them.
 - Keep simple mode portless unless the project clearly needs a port and I approve it.
 
 After approval, finalize the project-specific container setup and summarize every file changed.
@@ -315,13 +330,27 @@ Before doing anything, read both container-wt docs:
 Files skipped or intentionally left unmodified during install:
 ${skipped_text}
 
+Personal Docker setup to merge:
+If you have a personal Dockerfile, Docker Compose file, or Compose snippet with your
+usual tools, mounts, environment variables, or services, paste it below before sending
+this prompt. Treat it as source material to adapt to this project, not as a file to
+copy over the installed templates.
+
+Paste personal Dockerfile / Docker Compose content here, or write "None":
+
+--- END PERSONAL DOCKER SETUP ---
+
 Follow the Web Mode section in SETUP_ASSISTANT.md.
 
 Key constraints:
 - Inspect the project first.
+- Ask me to paste personal Dockerfile or Docker Compose content if I left the
+  section above blank.
 - Propose a setup plan before editing.
 - Ask for approval before editing any file.
 - Do not overwrite skipped or user-owned files.
+- Merge useful personal tools, mounts, env, and services into the project-specific
+  container-wt files without blindly replacing them.
 - Preserve existing root Compose behavior.
 - If root .env exists, propose a minimal COMPOSE_FILE/COMPOSE_PROFILES patch.
 - Do not reference missing Compose files.
