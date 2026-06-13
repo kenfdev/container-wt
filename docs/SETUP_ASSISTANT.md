@@ -76,6 +76,19 @@ Use it as input when proposing project-specific changes:
 - Do not replace container-wt's generated `.container/.env`, routing, networks, or Compose file
   structure unless the change is explicitly needed and approved.
 
+## Disk Usage Guidance
+
+The app image is shared across worktrees by default through `APP_IMAGE_NAME`.
+
+- Keep `APP_IMAGE_NAME=container-wt-${PROJECT_NAME}-app` when worktrees use the same development
+  Dockerfile.
+- Use a worktree-specific `APP_IMAGE_NAME` only when that worktree intentionally needs a different
+  Dockerfile or incompatible toolchain.
+- Prefer project-level package cache volumes when the project stack benefits from them, such as
+  npm, pnpm, Cargo, Go, pip, or Bundler caches.
+- Do not prune Docker build cache automatically during normal setup or worktree deletion. Build
+  cache improves rebuild speed and should be removed only by explicit user action.
+
 ## Simple Mode Procedure
 
 Simple mode is CLI/container-shell first.

@@ -31,6 +31,7 @@ GIT_COMMON_DIR=$(cd "$gitdir" && pwd)
 PROJECT_NAME_RAW="${PROJECT_NAME:-$(basename "$(dirname "$GIT_COMMON_DIR")")}"
 PROJECT_NAME=$(printf '%s' "$PROJECT_NAME_RAW" | sanitize)
 LOCAL_WORKSPACE_FOLDER="$WORKTREE_ROOT"
+APP_IMAGE_NAME="${APP_IMAGE_NAME:-container-wt-${PROJECT_NAME}-app}"
 
 mkdir -p "$CONTAINER_DIR"
 
@@ -51,6 +52,7 @@ WORKTREE_NAME=${WORKTREE_NAME}
 BRANCH_NAME=${BRANCH_NAME}
 GIT_COMMON_DIR=${GIT_COMMON_DIR}
 LOCAL_WORKSPACE_FOLDER=${LOCAL_WORKSPACE_FOLDER}
+APP_IMAGE_NAME=${APP_IMAGE_NAME}
 EOF
 
 echo "[container-wt] Wrote .container/.env for simple mode."

@@ -37,6 +37,30 @@ The printed prompt references:
 
 Use those docs when asking an assistant to adapt the generic template to a specific project.
 
+## Disk Usage
+
+The app image is named per project, not per worktree:
+
+```env
+APP_IMAGE_NAME=container-wt-myapp-app
+```
+
+This lets multiple worktrees reuse the same development image by default. If one worktree needs a
+different Dockerfile or toolchain, change `APP_IMAGE_NAME` in that worktree's `.container/.env`
+before building.
+
+Before deleting a worktree, the delete hook can remove the container:
+
+```bash
+.container/hooks/on-delete.sh
+```
+
+To also remove the shared app image:
+
+```bash
+.container/hooks/on-delete.sh --rmi
+```
+
 ## Installed Layout
 
 Both modes use:

@@ -2,6 +2,7 @@ name: ${PROJECT_NAME}-${WORKTREE_NAME}
 
 services:
   app:
+    image: ${APP_IMAGE_NAME}
     build:
       context: ..
       dockerfile: .container/Dockerfile
