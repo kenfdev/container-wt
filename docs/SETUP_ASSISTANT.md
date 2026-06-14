@@ -10,10 +10,12 @@ Follow these rules strictly.
 2. Inspect the target project before proposing changes.
 3. Identify whether the installation mode is `simple` or `web`.
 4. Review the files skipped or intentionally left unmodified during installation.
-5. Check whether the user pasted a personal Dockerfile, Docker Compose file, or Compose snippet.
-   - If they did not, ask once whether they want to paste one before you propose edits.
-6. Propose a plan.
-7. Ask the user for approval before editing any file.
+5. Check whether `~/.config/container-wt/personal-profile.md` exists.
+   - If it exists, read it and treat it as reusable developer preference source material.
+   - Do not copy it blindly; adapt only relevant preferences to the target project.
+6. If the user voluntarily included extra Dockerfile or Compose snippets, treat them as source material to merge, not as replacements.
+7. Propose a plan.
+8. Ask the user for approval before editing any file.
 
 Do not edit first.
 
@@ -37,6 +39,7 @@ Common files:
 .container/Dockerfile.example
 .container/Dockerfile
 .container/docker-compose.yml
+.container/docker-compose.override.yml  # optional, gitignored, included by init.sh if present
 .container/init.sh
 .container/.env
 .container/.env.app.example
@@ -54,25 +57,29 @@ docker-compose.infra.yml
 .container/traefik/dynamic.yml
 ```
 
-## Personal Docker Setup Merge Guidance
+## Personal Profile and Docker Setup Merge Guidance
 
-The user may paste a personal Dockerfile, Docker Compose file, or Compose snippet.
+The user may have a personal profile at `~/.config/container-wt/personal-profile.md` and may
+also voluntarily include a Dockerfile, Docker Compose file, or Compose snippet.
 This content can include their preferred CLI tools, package managers, dotfiles, bind mounts,
 cache directories, environment variables, sidecar services, or local networking preferences.
+Do not ask for pasted Docker setup by default when a personal profile is present.
 
 Use it as input when proposing project-specific changes:
 
 - Extract durable developer preferences, such as installed tools, shell setup, package caches,
   mounts, and helper services.
+- Prefer project-declared runtime versions over personal profile defaults.
 - Cross-check those preferences against the detected project stack.
 - Merge Dockerfile needs into `.container/Dockerfile`.
-- Merge app-container Compose needs into `.container/docker-compose.yml`.
+- Merge project-wide app-container Compose needs into `.container/docker-compose.yml`.
+- Put personal, machine-local Compose preferences in `.container/docker-compose.override.yml` when appropriate.
 - In web mode, merge shared infra services into `docker-compose.infra.yml` only when they are
   actually shared infrastructure and the user approves them.
 - Put app runtime environment values in `.container/.env.app` when appropriate.
 - Keep project-specific values from the pasted content only when they match the target project.
 - Do not copy stale service names, image names, container names, project names, port bindings,
-  volumes, or paths blindly.
+  volumes, user names, home directories, runtime versions, or paths blindly.
 - Do not replace container-wt's generated `.container/.env`, routing, networks, or Compose file
   structure unless the change is explicitly needed and approved.
 
@@ -195,6 +202,9 @@ When proposing changes, include:
 
 - detected stack
 - files inspected
+- whether a personal profile was found
+- relevant profile/pasted preferences to merge
+- profile/pasted preferences intentionally ignored and why
 - proposed file edits
 - risks or assumptions
 - exact commands to verify

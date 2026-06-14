@@ -30,6 +30,8 @@ curl -fsSL https://raw.githubusercontent.com/kenfdev/container-wt/main/install.s
 
 The installer copies common files plus the selected mode, runs `.container/init.sh`, then prints a prompt you can paste into a coding assistant for project-specific setup.
 
+If `~/.config/container-wt/personal-profile.md` exists, the printed prompt tells the assistant to read it and merge relevant personal Docker preferences into the project-specific plan. This is useful for reusable tools, dotfiles, SSH agent forwarding, cache mounts, and agent config mounts without making the template itself project-aware.
+
 The printed prompt references:
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
@@ -70,6 +72,7 @@ Both modes use:
   Dockerfile.example
   Dockerfile              # gitignored, copied from example if missing
   docker-compose.yml
+  docker-compose.override.yml  # optional, gitignored, included by init.sh if present
   init.sh
   .env                    # generated, gitignored
   .env.app.example

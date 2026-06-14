@@ -230,6 +230,7 @@ GITIGNORE_ENTRIES=(
   '.container/.env'
   '.container/.env.app'
   '.container/Dockerfile'
+  '.container/docker-compose.override.yml'
   '.container/traefik/dynamic.yml'
   '.worktreeinclude.local'
 )
@@ -291,22 +292,22 @@ Before doing anything, read both container-wt docs:
 Files skipped or intentionally left unmodified during install:
 ${skipped_text}
 
-Personal Docker setup to merge:
-If you have a personal Dockerfile, Docker Compose file, or Compose snippet with your
-usual tools, mounts, environment variables, or services, paste it below before sending
-this prompt. Treat it as source material to adapt to this project, not as a file to
-copy over the installed templates.
+Optional personal profile:
+Before proposing edits, check whether this file exists on my machine:
 
-Paste personal Dockerfile / Docker Compose content here, or write "None":
+~/.config/container-wt/personal-profile.md
 
---- END PERSONAL DOCKER SETUP ---
+If it exists, read it and treat it as reusable developer preference source material.
+Do not copy it blindly. Adapt usernames, home directories, base images, runtime
+versions, ports, and paths to this project. Prefer project-declared runtime versions
+over profile defaults.
 
 Follow the Simple Mode section in SETUP_ASSISTANT.md.
 
 Key constraints:
 - Inspect the project first.
-- Ask me to paste personal Dockerfile or Docker Compose content if I left the
-  section above blank.
+- Read ~/.config/container-wt/personal-profile.md if it exists and include relevant
+  profile items in the setup plan.
 - Propose a setup plan before editing.
 - Ask for approval before editing any file.
 - Do not overwrite skipped or user-owned files.
@@ -330,22 +331,22 @@ Before doing anything, read both container-wt docs:
 Files skipped or intentionally left unmodified during install:
 ${skipped_text}
 
-Personal Docker setup to merge:
-If you have a personal Dockerfile, Docker Compose file, or Compose snippet with your
-usual tools, mounts, environment variables, or services, paste it below before sending
-this prompt. Treat it as source material to adapt to this project, not as a file to
-copy over the installed templates.
+Optional personal profile:
+Before proposing edits, check whether this file exists on my machine:
 
-Paste personal Dockerfile / Docker Compose content here, or write "None":
+~/.config/container-wt/personal-profile.md
 
---- END PERSONAL DOCKER SETUP ---
+If it exists, read it and treat it as reusable developer preference source material.
+Do not copy it blindly. Adapt usernames, home directories, base images, runtime
+versions, ports, and paths to this project. Prefer project-declared runtime versions
+over profile defaults.
 
 Follow the Web Mode section in SETUP_ASSISTANT.md.
 
 Key constraints:
 - Inspect the project first.
-- Ask me to paste personal Dockerfile or Docker Compose content if I left the
-  section above blank.
+- Read ~/.config/container-wt/personal-profile.md if it exists and include relevant
+  profile items in the setup plan.
 - Propose a setup plan before editing.
 - Ask for approval before editing any file.
 - Do not overwrite skipped or user-owned files.

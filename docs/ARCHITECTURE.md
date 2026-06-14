@@ -80,6 +80,7 @@ Both modes use `.container/`:
   Dockerfile.example
   Dockerfile
   docker-compose.yml
+  docker-compose.override.yml  # optional, gitignored, included by init.sh if present
   init.sh
   .env
   .env.app.example
@@ -95,6 +96,7 @@ Generated or local-only files are gitignored:
 .container/Dockerfile
 .container/.env
 .container/.env.app
+.container/docker-compose.override.yml
 .container/traefik/dynamic.yml
 .worktreeinclude.local
 ```
@@ -152,6 +154,14 @@ Web mode also includes:
 NETWORK_NAME=...
 APP_PORT=3000
 ```
+
+If `.container/docker-compose.override.yml` exists, `init.sh` includes it automatically:
+
+```env
+COMPOSE_FILE=docker-compose.yml:docker-compose.override.yml
+```
+
+This override file is gitignored and is intended for personal mounts, caches, SSH agent forwarding, and other machine-local Compose preferences.
 
 `.container/.env.app.example` is tracked.
 

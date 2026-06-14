@@ -32,6 +32,10 @@ PROJECT_NAME_RAW="${PROJECT_NAME:-$(basename "$(dirname "$GIT_COMMON_DIR")")}"
 PROJECT_NAME=$(printf '%s' "$PROJECT_NAME_RAW" | sanitize)
 LOCAL_WORKSPACE_FOLDER="$WORKTREE_ROOT"
 APP_IMAGE_NAME="${APP_IMAGE_NAME:-container-wt-${PROJECT_NAME}-app}"
+COMPOSE_FILES="docker-compose.yml"
+if [ -f "${CONTAINER_DIR}/docker-compose.override.yml" ]; then
+  COMPOSE_FILES="${COMPOSE_FILES}:docker-compose.override.yml"
+fi
 
 mkdir -p "$CONTAINER_DIR"
 
@@ -46,7 +50,7 @@ if [ ! -f "${CONTAINER_DIR}/.env.app" ]; then
 fi
 
 cat > "${CONTAINER_DIR}/.env" <<EOF
-COMPOSE_FILE=docker-compose.yml
+COMPOSE_FILE=${COMPOSE_FILES}
 PROJECT_NAME=${PROJECT_NAME}
 WORKTREE_NAME=${WORKTREE_NAME}
 BRANCH_NAME=${BRANCH_NAME}

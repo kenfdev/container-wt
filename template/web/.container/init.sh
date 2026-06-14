@@ -37,6 +37,10 @@ APP_IMAGE_NAME="${APP_IMAGE_NAME:-container-wt-${PROJECT_NAME}-app}"
 APP_PORT="${APP_PORT:-3000}"
 TRAEFIK_HOST="${TRAEFIK_HOST:-127.0.0.1}"
 TRAEFIK_PORT="${TRAEFIK_PORT:-9876}"
+COMPOSE_FILES="docker-compose.yml"
+if [ -f "${CONTAINER_DIR}/docker-compose.override.yml" ]; then
+  COMPOSE_FILES="${COMPOSE_FILES}:docker-compose.override.yml"
+fi
 
 mkdir -p "$CONTAINER_DIR"
 
@@ -51,7 +55,7 @@ if [ ! -f "${CONTAINER_DIR}/.env.app" ]; then
 fi
 
 cat > "${CONTAINER_DIR}/.env" <<EOF
-COMPOSE_FILE=docker-compose.yml
+COMPOSE_FILE=${COMPOSE_FILES}
 PROJECT_NAME=${PROJECT_NAME}
 WORKTREE_NAME=${WORKTREE_NAME}
 BRANCH_NAME=${BRANCH_NAME}
