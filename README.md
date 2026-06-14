@@ -80,7 +80,6 @@ Both modes use:
   hooks/
     on-create.sh
     on-delete.sh
-.worktreeinclude
 .dockerignore
 ```
 
@@ -180,7 +179,9 @@ Optional hook automation:
 .container/hooks/on-delete.sh
 ```
 
-`on-create.sh` copies files listed in `.worktreeinclude` and `.worktreeinclude.local`, then runs `.container/init.sh`.
+`on-create.sh` runs `.container/init.sh` for the new worktree.
+
+For copying ignored files such as local env files into new worktrees, container-wt intentionally does not maintain its own include-list feature. We highly recommend using a worktree-focused tool such as `worktrunk`, configured to automatically copy the files you need from `.gitignore`.
 
 ## How Git Works In The Container
 

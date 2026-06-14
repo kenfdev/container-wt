@@ -49,8 +49,6 @@ Mode-specific files intentionally duplicate small init logic. Do not add a store
   hooks/
     on-create.sh
     on-delete.sh
-.worktreeinclude
-.worktreeinclude.local
 .dockerignore
 ```
 
@@ -61,7 +59,6 @@ Generated/gitignored:
 .container/.env.app
 .container/Dockerfile
 .container/traefik/dynamic.yml
-.worktreeinclude.local
 ```
 
 ## Dockerfile Model
@@ -218,9 +215,9 @@ Hooks are installed but not auto-wired.
 
 `on-create.sh`:
 
-- copies files from `.worktreeinclude`
-- copies files from `.worktreeinclude.local`
 - runs `.container/init.sh`
+
+Copying ignored files into newly-created worktrees is intentionally outside container-wt. Prefer a worktree-focused tool such as `worktrunk`, configured to automatically copy the files the project needs from `.gitignore`.
 
 `on-delete.sh`:
 

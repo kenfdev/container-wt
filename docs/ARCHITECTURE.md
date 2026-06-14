@@ -98,7 +98,6 @@ Generated or local-only files are gitignored:
 .container/.env.app
 .container/docker-compose.override.yml
 .container/traefik/dynamic.yml
-.worktreeinclude.local
 ```
 
 ## Dockerfile Model
@@ -242,9 +241,9 @@ All `.container` scripts resolve the worktree root from their own path, so they 
 
 `on-create.sh`:
 
-- copies files listed in `.worktreeinclude`
-- copies files listed in `.worktreeinclude.local`
 - runs `.container/init.sh`
+
+Copying ignored files into newly-created worktrees is intentionally outside container-wt. Prefer a worktree-focused tool such as `worktrunk`, configured to automatically copy the files the project needs from `.gitignore`.
 
 `on-delete.sh`:
 

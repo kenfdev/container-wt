@@ -123,7 +123,6 @@ MANAGED_FILES=(
   ".container/init.sh"
   ".container/hooks/on-create.sh"
   ".container/hooks/on-delete.sh"
-  ".worktreeinclude"
   ".dockerignore"
 )
 
@@ -232,7 +231,6 @@ GITIGNORE_ENTRIES=(
   '.container/Dockerfile'
   '.container/docker-compose.override.yml'
   '.container/traefik/dynamic.yml'
-  '.worktreeinclude.local'
 )
 
 if [ -f ".gitignore" ]; then

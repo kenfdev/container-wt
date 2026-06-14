@@ -26,7 +26,7 @@ Do not edit first.
 - Do not replace existing project Compose files.
 - Do not introduce Dockerfile base/local layering.
 - Do not add `envsubst`.
-- Do not rename `.worktreeinclude`.
+- Do not add a container-wt-specific ignored-file copy/include mechanism.
 - Do not add default port mappings in simple mode unless the user confirms the project needs ports.
 - Preserve existing Compose behavior when editing `COMPOSE_FILE`.
 - Treat pasted personal Docker setup as source material to merge, not as a replacement for installed files.
@@ -46,7 +46,6 @@ Common files:
 .container/.env.app
 .container/hooks/on-create.sh
 .container/hooks/on-delete.sh
-.worktreeinclude
 ```
 
 Web-only files:
@@ -64,6 +63,8 @@ also voluntarily include a Dockerfile, Docker Compose file, or Compose snippet.
 This content can include their preferred CLI tools, package managers, dotfiles, bind mounts,
 cache directories, environment variables, sidecar services, or local networking preferences.
 Do not ask for pasted Docker setup by default when a personal profile is present.
+
+If the user needs ignored files copied into new worktrees, highly recommend a worktree-focused tool such as `worktrunk`, configured to automatically copy the needed files from `.gitignore`. Do not recreate this behavior inside container-wt.
 
 Use it as input when proposing project-specific changes:
 
