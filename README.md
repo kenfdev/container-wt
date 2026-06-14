@@ -158,7 +158,7 @@ TRAEFIK_HOST=127.0.0.1
 TRAEFIK_PORT=9876
 ```
 
-If root `.env` already exists, it is not overwritten. Update it manually so `COMPOSE_FILE` includes `docker-compose.infra.yml` without dropping existing Compose files.
+If root `.env` already exists, it is not overwritten. Update it manually so `COMPOSE_FILE` includes `docker-compose.infra.yml` without dropping existing Compose files. When container-wt creates the root `.env`, it also adds `.env` to the root `.gitignore`.
 
 ## Worktree Flow
 

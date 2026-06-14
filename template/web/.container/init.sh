@@ -82,6 +82,15 @@ NETWORK_NAME=${NETWORK_NAME}
 TRAEFIK_HOST=${TRAEFIK_HOST}
 TRAEFIK_PORT=${TRAEFIK_PORT}
 EOF
+  if [ -f "${MAIN_REPO_DIR}/.gitignore" ]; then
+    if ! grep -qF "# container-wt" "${MAIN_REPO_DIR}/.gitignore" 2>/dev/null; then
+      printf '\n# container-wt\n.env\n' >> "${MAIN_REPO_DIR}/.gitignore"
+    else
+      grep -qxF ".env" "${MAIN_REPO_DIR}/.gitignore" 2>/dev/null || echo ".env" >> "${MAIN_REPO_DIR}/.gitignore"
+    fi
+  else
+    printf '# container-wt\n.env\n' > "${MAIN_REPO_DIR}/.gitignore"
+  fi
   echo "[container-wt] Created root .env for web infra."
 else
   echo "[container-wt] Root .env exists; not modified."

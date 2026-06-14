@@ -209,6 +209,7 @@ else
   SKIPPED_FILES+=(".container/.env.app")
 fi
 
+CREATED_ROOT_ENV="no"
 if [ "$MODE" = "web" ]; then
   if [ ! -f ".env" ]; then
     cat > .env <<EOF
@@ -219,32 +220,37 @@ NETWORK_NAME=devnet-${PROJECT_NAME}
 TRAEFIK_HOST=127.0.0.1
 TRAEFIK_PORT=9876
 EOF
+    CREATED_ROOT_ENV="yes"
   else
     SKIPPED_FILES+=(".env")
   fi
 fi
 
-GITIGNORE_ENTRIES=(
-  '# container-wt'
-  '.container/.env'
-  '.container/.env.app'
-  '.container/Dockerfile'
-  '.container/docker-compose.override.yml'
-  '.container/traefik/dynamic.yml'
-)
+# Most local container files are ignored by .container/.gitignore. The root
+# .gitignore only needs entries for generated root-level files that this install
+# actually created.
+GITIGNORE_ENTRIES=()
+if [ "$CREATED_ROOT_ENV" = "yes" ]; then
+  GITIGNORE_ENTRIES+=(
+    '# container-wt'
+    '.env'
+  )
+fi
 
-if [ -f ".gitignore" ]; then
-  if ! grep -qF "# container-wt" .gitignore 2>/dev/null; then
-    echo "" >> .gitignore
-    printf '%s\n' "${GITIGNORE_ENTRIES[@]}" >> .gitignore
+if [ ${#GITIGNORE_ENTRIES[@]} -gt 0 ]; then
+  if [ -f ".gitignore" ]; then
+    if ! grep -qF "# container-wt" .gitignore 2>/dev/null; then
+      echo "" >> .gitignore
+      printf '%s\n' "${GITIGNORE_ENTRIES[@]}" >> .gitignore
+    else
+      for entry in "${GITIGNORE_ENTRIES[@]}"; do
+        [[ -z "$entry" || "$entry" == \#* ]] && continue
+        grep -qxF "$entry" .gitignore 2>/dev/null || echo "$entry" >> .gitignore
+      done
+    fi
   else
-    for entry in "${GITIGNORE_ENTRIES[@]}"; do
-      [[ -z "$entry" || "$entry" == \#* ]] && continue
-      grep -qF "$entry" .gitignore 2>/dev/null || echo "$entry" >> .gitignore
-    done
+    printf '%s\n' "${GITIGNORE_ENTRIES[@]}" > .gitignore
   fi
-else
-  printf '%s\n' "${GITIGNORE_ENTRIES[@]}" > .gitignore
 fi
 
 info "Running .container/init.sh..."

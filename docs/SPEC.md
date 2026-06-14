@@ -150,7 +150,7 @@ TRAEFIK_HOST=127.0.0.1
 TRAEFIK_PORT=9876
 ```
 
-Existing root `.env` is never overwritten. The installer prompt tells the user/LLM to merge `COMPOSE_FILE` safely.
+Existing root `.env` is never overwritten. When container-wt creates a root `.env`, it adds `.env` to the root `.gitignore`. The installer prompt tells the user/LLM to merge `COMPOSE_FILE` safely.
 
 ## Web Infra Compose
 

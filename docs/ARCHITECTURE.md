@@ -197,7 +197,7 @@ TRAEFIK_HOST=127.0.0.1
 TRAEFIK_PORT=9876
 ```
 
-If root `.env` already exists, it is not overwritten. Existing Compose behavior must be preserved manually.
+If root `.env` already exists, it is not overwritten. Existing Compose behavior must be preserved manually. When container-wt creates the root `.env`, it also adds `.env` to the root `.gitignore`.
 
 ## Routing
 
